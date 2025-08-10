@@ -1,0 +1,45 @@
+/* Admin Dashboard — clean, responsive overrides */
+
+/* 1) Đừng ép width cho CardContent, để auto theo Grid */
+.MuiCardContent-root {
+  width: auto !important;
+  box-sizing: border-box;
+}
+
+/* 2) Metric cards: bố cục gọn gàng, không tràn */
+.admin-metric-card .MuiCardContent-root {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px; /* có thể tinh chỉnh */
+}
+
+/* 3) Tránh overflow nội dung trong Grid items */
+.MuiGrid-item {
+  min-width: 0;
+}
+
+/* 4) Danh sách hoạt động gần đây: giảm padding để đỡ dày */
+.admin-activity-card .MuiListItem-root {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* 5) Card chung: bo góc + bóng nhẹ cho đồng bộ thẩm mỹ */
+.MuiCard-root {
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+/* 6) Responsive chỉnh nhỏ padding trên mobile để thoáng */
+@media (max-width: 768px) {
+  .admin-metric-card .MuiCardContent-root {
+    padding: 12px 14px;
+    gap: 8px;
+  }
+
+  .MuiCard-root {
+    border-radius: 14px;
+  }
+}
