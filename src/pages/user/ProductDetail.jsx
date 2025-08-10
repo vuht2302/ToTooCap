@@ -19,6 +19,7 @@ import CircleIcon from "@mui/icons-material/Circle";
 import Rating from "@mui/material/Rating";
 import { useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
+import { API_BASE_URL } from "../../config/api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 export default function ProductDetail() {
@@ -37,7 +38,7 @@ export default function ProductDetail() {
     }
     try {
       const res = await fetch(
-        "http://54.169.159.141:3000/cart/CartItem/product/add",
+        `${API_BASE_URL}/cart/CartItem/product/add`,
         {
           method: "POST",
           headers: {
@@ -65,7 +66,7 @@ export default function ProductDetail() {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const res = await fetch(`http://54.169.159.141:3000/product/get/${id}`);
+  const res = await fetch(`${API_BASE_URL}/product/get/${id}`);
         const result = await res.json();
 
         if (res.ok && result.success) {

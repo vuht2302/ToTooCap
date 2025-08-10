@@ -1,5 +1,5 @@
 // Image API Service
-const API_BASE_URL = "http://54.169.159.141:3000";
+import { API_BASE_URL } from "../config/api";
 
 class ImageService {
   // Get all product images

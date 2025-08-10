@@ -1,5 +1,5 @@
 // Product API Service
-const API_BASE_URL = "http://54.169.159.141:3000"; // API URL từ yêu cầu
+import { API_BASE_URL } from "../config/api";
 
 class ProductService {
   // Lấy danh sách tất cả sản phẩm

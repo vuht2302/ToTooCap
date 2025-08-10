@@ -8,6 +8,7 @@ import starSticker from '../../../assets/stickers/star.svg';
 import heartSticker from '../../../assets/stickers/heart.svg';
 import smileSticker from '../../../assets/stickers/smile.svg';
 import CloudinaryService from '../../../services/cloudinary.service';
+import { API_BASE_URL } from '../../../config/api';
 
 // A simpler, local-first hat designer: one canvas, base hat image, add text/image, color and save to localStorage.
 export default function HatDesignPage() {
@@ -281,9 +282,9 @@ export default function HatDesignPage() {
       if (storedUser) userId = JSON.parse(storedUser)?._id;
     } catch {}
     const token = localStorage.getItem('accessToken');
-    if (!userId && token) {
+  if (!userId && token) {
       try {
-        const infoRes = await fetch('http://54.169.159.141:3000/auth/user/get/loginUser', {
+    const infoRes = await fetch(`${API_BASE_URL}/auth/user/get/loginUser`, {
           method: 'GET',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         });
@@ -312,7 +313,7 @@ export default function HatDesignPage() {
 
     // 6) POST to backend (create custom design)
     try {
-      const res = await fetch('http://54.169.159.141:3000/customDesign/add', {
+      const res = await fetch(`${API_BASE_URL}/customDesign/add`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -336,7 +337,7 @@ export default function HatDesignPage() {
         if (createdId) {
           // 6b) Add this custom design to cart via provided API
           try {
-            const addCartRes = await fetch('http://54.169.159.141:3000/cart/CartItem/custom-design/add', {
+            const addCartRes = await fetch(`${API_BASE_URL}/cart/CartItem/custom-design/add`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

@@ -18,6 +18,7 @@ import {
 import Sidebar from "../../components/Sidebar";
 import { UserContext } from "../../context/UserContext";
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../../config/api";
 
 const currency = (n) =>
   (Number(n) || 0).toLocaleString(undefined, {
@@ -90,7 +91,7 @@ const CheckoutPage = () => {
     setSubmitting(true);
     try {
       const token = localStorage.getItem("accessToken");
-      const res = await fetch("http://54.169.159.141:3000/order/add", {
+  const res = await fetch(`${API_BASE_URL}/order/add`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
