@@ -1,9 +1,13 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+const isGhPages =
+  process.env.GITHUB_PAGES === "true" ||
+  process.env.VITE_DEPLOY_TARGET === "gh-pages";
 
 export default defineConfig({
   plugins: [react()],
-  base: "/",
+  // Vercel: '/', GH Pages: '/ToTooCap-FrontEnd/'
+  base: isGhPages ? "/ToTooCap-FrontEnd/" : "/",
   optimizeDeps: {
     include: ["fabric"],
   },
