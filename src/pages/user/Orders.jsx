@@ -23,7 +23,6 @@ import SearchIcon from "@mui/icons-material/Search";
 import QrCodeIcon from "@mui/icons-material/QrCode";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import OrderService from "../../services/orderService";
-import TransactionDetailDialog from "../../components/user/TransactionDetailDialog ";
 import QRPaymentDialog from "../../components/user/QRPaymentDialog";
 import { formatCurrency, formatDate } from "../../utils/format";
 
@@ -31,7 +30,6 @@ const statusFilters = ["All", "Processing", "Done", "Cancelled"];
 
 export default function Orders() {
   const [orders, setOrders] = useState([]);
-  const [payments, setPayments] = useState([]);
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -42,13 +40,6 @@ export default function Orders() {
     open: false,
     message: "",
     severity: "success",
-  });
-
-  // State cho dialog xem chi tiết
-  const [detailDialog, setDetailDialog] = useState({
-    open: false,
-    paymentDetail: null,
-    loading: false,
   });
 
   // State cho QR dialog
@@ -76,12 +67,8 @@ export default function Orders() {
     }
 
     // Load data
-    const loadData = async () => {
-      await Promise.all([fetchOrders(), fetchPayments()]);
-    };
-
-    loadData();
-  }, [selectedStatus]); // Chỉ dependency là selectedStatus
+    fetchOrders();
+  }, [selectedStatus, userId]); // Dependency gồm selectedStatus và userId
 
   // Separate useEffect để check user changes từ localStorage
   useEffect(() => {
@@ -98,21 +85,6 @@ export default function Orders() {
       window.removeEventListener("storage", handleStorageChange);
     };
   }, []);
-
-  // Fetch payments using service
-  const fetchPayments = async () => {
-    // Chỉ fetch payments nếu có userId
-    if (!userId) return;
-
-    try {
-      const data = await OrderService.getAllPayments();
-      if (data.success) {
-        setPayments(data.data || []);
-      }
-    } catch (error) {
-      console.error("Fetch payments failed:", error);
-    }
-  };
 
   // Fetch orders using service
   const fetchOrders = async () => {
@@ -145,6 +117,18 @@ export default function Orders() {
         const userOrders = (data.data || []).filter(
           (order) => order.user_id === userId
         );
+
+        // Log chi tiết từng đơn hàng
+        userOrders.forEach((order, index) => {
+          console.log(`Order ${index + 1}:`, {
+            id: order._id,
+            status: order.status,
+            total_amount: order.total_amount,
+            order_date: order.order_date,
+            shipping_address: order.shipping_address,
+          });
+        });
+
         setOrders(userOrders);
       } else {
         setError("Không thể tải danh sách đơn hàng");
@@ -157,52 +141,16 @@ export default function Orders() {
     }
   };
 
-  // Sử dụng helper functions từ service
-  const getPaymentStatusForOrder = (orderId) => {
-    return OrderService.getPaymentStatusForOrder(payments, orderId);
-  };
-
-  const getPaymentDetailForOrder = (orderId) => {
-    return OrderService.getPaymentDetailForOrder(payments, orderId);
-  };
-
-  const getDisplayStatus = (orderId) => {
-    return OrderService.getDisplayStatus(payments, orderId);
-  };
-
-  // Handle xem chi tiết giao dịch
-  const handleViewTransactionDetail = async (orderId) => {
-    const paymentDetail = getPaymentDetailForOrder(orderId);
-
-    if (paymentDetail) {
-      setDetailDialog({
-        open: true,
-        paymentDetail: paymentDetail,
-        loading: false,
-      });
-    } else {
-      setSnackbar({
-        open: true,
-        message: "Không tìm thấy thông tin giao dịch",
-        severity: "warning",
-      });
-    }
-  };
-
-  // Handle đóng dialog chi tiết
-  const handleCloseDetailDialog = () => {
-    setDetailDialog({
-      open: false,
-      paymentDetail: null,
-      loading: false,
-    });
+  // Đơn giản hóa hàm getDisplayStatus - chỉ sử dụng trạng thái từ order
+  const getDisplayStatus = (order) => {
+    return order.status || "Processing";
   };
 
   // Handle select all checkbox
   const handleSelectAll = (event) => {
     if (event.target.checked) {
       const payableOrders = filteredOrders
-        .filter((order) => getDisplayStatus(order._id) === "Processing")
+        .filter((order) => getDisplayStatus(order) === "Processing")
         .map((order) => order._id);
       setSelectedOrders(new Set(payableOrders));
     } else {
@@ -278,7 +226,7 @@ export default function Orders() {
 
   // Filter orders với logic mới
   const filteredOrders = orders.filter((order) => {
-    const displayStatus = getDisplayStatus(order._id);
+    const displayStatus = getDisplayStatus(order);
     const matchesStatus =
       selectedStatus === "All" || displayStatus === selectedStatus;
     const matchesSearch =
@@ -294,7 +242,7 @@ export default function Orders() {
 
   // Check if all payable orders are selected
   const payableOrders = filteredOrders.filter(
-    (order) => getDisplayStatus(order._id) === "Processing"
+    (order) => getDisplayStatus(order) === "Processing"
   );
   const isAllSelected =
     payableOrders.length > 0 &&
@@ -457,7 +405,7 @@ export default function Orders() {
                 </TableRow>
               ) : (
                 filteredOrders.map((order, index) => {
-                  const displayStatus = getDisplayStatus(order._id);
+                  const displayStatus = getDisplayStatus(order);
                   const isOrderSelected = selectedOrders.has(order._id);
                   const canPay = displayStatus === "Processing";
                   const isDone = displayStatus === "Done";
@@ -476,9 +424,13 @@ export default function Orders() {
                           <Button
                             variant="outlined"
                             size="small"
-                            onClick={() =>
-                              handleViewTransactionDetail(order._id)
-                            }
+                            onClick={() => {
+                              setSnackbar({
+                                open: true,
+                                message: "Đơn hàng đã hoàn thành",
+                                severity: "info",
+                              });
+                            }}
                             sx={{
                               minWidth: "42px",
                               width: "42px",
@@ -578,14 +530,6 @@ export default function Orders() {
           selectedOrders={qrDialog.selectedOrders}
           totalAmount={qrDialog.totalAmount}
           onConfirmPayment={handleConfirmPayment}
-        />
-
-        {/* Transaction Detail Dialog */}
-        <TransactionDetailDialog
-          open={detailDialog.open}
-          onClose={handleCloseDetailDialog}
-          paymentDetail={detailDialog.paymentDetail}
-          loading={detailDialog.loading}
         />
 
         {/* Snackbar for notifications */}
