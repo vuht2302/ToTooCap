@@ -50,16 +50,52 @@ export default function Orders() {
     loading: false,
   });
 
-  const storedUser = localStorage.getItem("user");
-  const userId = storedUser ? JSON.parse(storedUser)._id : "";
+  // Lấy user info một lần và lưu vào state để tránh re-parse
+  const [userInfo, setUserInfo] = useState(() => {
+    const storedUser = localStorage.getItem("user");
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
 
+  const userId = userInfo?._id;
+
+  // useEffect để check authentication và load data
   useEffect(() => {
-    fetchOrders();
-    fetchPayments();
-  }, [selectedStatus, userId]);
+    // Kiểm tra nếu không có user đã đăng nhập
+    if (!userInfo || !userId) {
+      setError("Bạn cần đăng nhập để xem đơn hàng");
+      setLoading(false);
+      return;
+    }
+
+    // Load data
+    const loadData = async () => {
+      await Promise.all([fetchOrders(), fetchPayments()]);
+    };
+
+    loadData();
+  }, [selectedStatus]); // Chỉ dependency là selectedStatus
+
+  // Separate useEffect để check user changes từ localStorage
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const storedUser = localStorage.getItem("user");
+      const newUser = storedUser ? JSON.parse(storedUser) : null;
+      setUserInfo(newUser);
+    };
+
+    // Listen for storage changes
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
 
   // Fetch payments using service
   const fetchPayments = async () => {
+    // Chỉ fetch payments nếu có userId
+    if (!userId) return;
+
     try {
       const data = await OrderService.getAllPayments();
       if (data.success) {
@@ -72,6 +108,13 @@ export default function Orders() {
 
   // Fetch orders using service
   const fetchOrders = async () => {
+    // Kiểm tra userId trước khi fetch
+    if (!userId || !userId.trim()) {
+      setError("Không tìm thấy thông tin người dùng");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -81,16 +124,20 @@ export default function Orders() {
         limit: 100,
         sortBy: "createdAt",
         sortOrder: "desc",
-        ...(userId && userId.trim() && { userId }),
+        userId: userId, // Bắt buộc phải có userId
       };
 
-      console.log("userId:", userId);
+      console.log("Fetching orders for userId:", userId);
 
       const data = await OrderService.getAllOrders(params);
       console.log("Fetched orders:", data);
 
       if (data.success) {
-        setOrders(data.data || []);
+        // Thêm một lần kiểm tra nữa để đảm bảo chỉ lấy đơn hàng của user hiện tại
+        const userOrders = (data.data || []).filter(
+          (order) => order.user_id === userId
+        );
+        setOrders(userOrders);
       } else {
         setError("Không thể tải danh sách đơn hàng");
       }
@@ -313,6 +360,27 @@ export default function Orders() {
   const isIndeterminate =
     payableOrders.some((order) => selectedOrders.has(order._id)) &&
     !isAllSelected;
+
+  // Thêm kiểm tra user authentication trong render
+  if (!userInfo || !userId) {
+    return (
+      <Box sx={{ display: "flex" }}>
+        <Sidebar />
+        <Box sx={{ flexGrow: 1, p: 4 }}>
+          <Alert severity="warning">
+            Bạn cần đăng nhập để xem đơn hàng.
+            <Button
+              variant="outlined"
+              sx={{ ml: 2 }}
+              onClick={() => (window.location.href = "/login")}
+            >
+              Đăng nhập
+            </Button>
+          </Alert>
+        </Box>
+      </Box>
+    );
+  }
 
   if (loading) {
     return (
