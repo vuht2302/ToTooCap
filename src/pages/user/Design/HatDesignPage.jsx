@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Box, Button, Paper, Stack, Tooltip, IconButton, Typography, Slider } from '@mui/material';
-import { TextFields, UploadFile, ColorLens, DeleteOutline, Save, Backspace } from '@mui/icons-material';
+import { TextFields, UploadFile, ColorLens, DeleteOutline, Save, Backspace, ZoomIn, ZoomOut, CenterFocusStrong } from '@mui/icons-material';
 import { FabricJSCanvas, useFabricJSEditor } from 'fabricjs-react';
 import baseHat from '../../../assets/image_non.png';
 import oneSticker from '../../../assets/stickers/1.webp';
@@ -20,6 +20,7 @@ export default function HatDesignPage() {
   const [color, setColor] = useState('#000000');
   const [initialized, setInitialized] = useState(false);
   const [hasDraft, setHasDraft] = useState(false);
+  const [zoom, setZoom] = useState(1);
   const stickers = [
     { id: 'one', src: oneSticker, name: 'Sticker 1' },
   ];
@@ -27,28 +28,38 @@ export default function HatDesignPage() {
   const STORAGE_JSON_KEY = `hatDesign:json:${productId || 'default'}`;
   const STORAGE_IMG_KEY = `hatDesign:image:${productId || 'default'}`;
 
-  // Add the base hat image (unselectable)
+  // Helper: compute scale & position so hat always fully visible & centered
+  const layoutBaseHat = (canvas, img) => {
+    const cw = canvas.getWidth();
+    const ch = canvas.getHeight();
+    // Leave some vertical & horizontal margin (10%)
+    const maxW = cw * 0.7; // allow bigger on wide screens
+    const maxH = ch * 0.75; // keep some space for overlay UI
+    const scale = Math.min(maxW / img.width, maxH / img.height);
+    const left = (cw - img.width * scale) / 2;
+    const top = (ch - img.height * scale) / 2;
+    img.set({
+      scaleX: scale,
+      scaleY: scale,
+      left,
+      top,
+    });
+  };
+
+  // Add the base hat image (unselectable & auto-resized on viewport changes)
   const addBaseHat = (canvas) => {
     if (!canvas) return;
     window.fabric.Image.fromURL(
       baseHat,
       (img) => {
-        const cw = canvas.getWidth();
-        const ch = canvas.getHeight();
-        const targetW = cw * 0.5;
-        const scale = targetW / img.width;
-        const left = cw / 2 - (img.width * scale) / 2;
-        const top = ch / 2 - (img.height * scale) / 2; // center vertically
         img.set({
-          scaleX: scale,
-          scaleY: scale,
-          left,
-          top,
           selectable: false,
           evented: false,
           name: 'baseHat',
           isBaseHat: true,
+          _autoLayout: true, // flag so we can re-layout on resize
         });
+        layoutBaseHat(canvas, img);
         canvas.add(img);
         canvas.sendToBack(img);
         canvas.renderAll();
@@ -245,6 +256,34 @@ export default function HatDesignPage() {
     }
   };
 
+  // Zoom functions
+  const handleZoomIn = () => {
+    if (!editor?.canvas) return;
+    const canvas = editor.canvas;
+    const newZoom = Math.min(zoom * 1.2, 3); // Max zoom 3x
+    setZoom(newZoom);
+    canvas.setZoom(newZoom);
+    canvas.renderAll();
+  };
+
+  const handleZoomOut = () => {
+    if (!editor?.canvas) return;
+    const canvas = editor.canvas;
+    const newZoom = Math.max(zoom / 1.2, 0.3); // Min zoom 0.3x
+    setZoom(newZoom);
+    canvas.setZoom(newZoom);
+    canvas.renderAll();
+  };
+
+  const handleResetZoom = () => {
+    if (!editor?.canvas) return;
+    const canvas = editor.canvas;
+    setZoom(1);
+    canvas.setZoom(1);
+    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]); // Reset pan as well
+    canvas.renderAll();
+  };
+
   const handleSave = async () => {
     if (!editor?.canvas) return;
     const canvas = editor.canvas;
@@ -394,6 +433,73 @@ export default function HatDesignPage() {
     canvas.setHeight(height);
     canvas.renderAll();
     setInitialized(true);
+    
+    // Enable mouse wheel zoom
+    canvas.on('mouse:wheel', (opt) => {
+      const delta = opt.e.deltaY;
+      let zoom = canvas.getZoom();
+      
+      // Improved zoom calculation
+      const zoomStep = 0.1;
+      if (delta > 0) {
+        zoom = Math.max(zoom - zoomStep, 0.3); // Zoom out, min 0.3x
+      } else {
+        zoom = Math.min(zoom + zoomStep, 3); // Zoom in, max 3x
+      }
+      
+      setZoom(zoom);
+      
+      // Get mouse position relative to canvas
+      const pointer = canvas.getPointer(opt.e);
+      canvas.zoomToPoint(pointer, zoom);
+      
+      opt.e.preventDefault();
+      opt.e.stopPropagation();
+    });
+
+    // Enable panning when zoomed - improved version
+    let isDragging = false;
+    let lastPosX = 0;
+    let lastPosY = 0;
+
+    canvas.on('mouse:down', (opt) => {
+      const evt = opt.e;
+      // Enable panning with middle mouse button or Ctrl/Alt + left click
+      if (evt.button === 1 || evt.altKey === true || evt.ctrlKey === true) {
+        isDragging = true;
+        canvas.selection = false;
+        canvas.defaultCursor = 'grab';
+        canvas.hoverCursor = 'grab';
+        lastPosX = evt.clientX;
+        lastPosY = evt.clientY;
+        opt.e.preventDefault();
+      }
+    });
+
+    canvas.on('mouse:move', (opt) => {
+      if (isDragging) {
+        const e = opt.e;
+        const vpt = canvas.viewportTransform;
+        vpt[4] += e.clientX - lastPosX;
+        vpt[5] += e.clientY - lastPosY;
+        canvas.requestRenderAll();
+        lastPosX = e.clientX;
+        lastPosY = e.clientY;
+        canvas.defaultCursor = 'grabbing';
+        canvas.hoverCursor = 'grabbing';
+      }
+    });
+
+    canvas.on('mouse:up', () => {
+      if (isDragging) {
+        canvas.setViewportTransform(canvas.viewportTransform);
+        isDragging = false;
+        canvas.selection = true;
+        canvas.defaultCursor = 'default';
+        canvas.hoverCursor = 'move';
+      }
+    });
+    
     // default: start fresh with base hat, do not auto-restore
     addBaseHat(canvas);
     // detect if a draft exists and show a restore button
@@ -409,20 +515,9 @@ export default function HatDesignPage() {
       if (!c) return;
       canvas.setWidth(c.clientWidth);
       canvas.setHeight(Math.max(480, Math.round((c.clientWidth * 2) / 3)));
-      // Re-center base hat image
-      const base = canvas.getObjects().find(o => o.isBaseHat || o.name === 'baseHat');
-      if (base) {
-        const cw = canvas.getWidth();
-        const ch = canvas.getHeight();
-        const targetW = cw * 0.5;
-        const scale = targetW / base.width; // original width preserved
-        base.set({
-          scaleX: scale,
-          scaleY: scale,
-          left: cw / 2 - (base.width * scale) / 2,
-          top: ch / 2 - (base.height * scale) / 2,
-        });
-      }
+      // Re-layout base hat only (preserve user-added objects positions)
+      const base = canvas.getObjects().find(o => o._autoLayout);
+      if (base) layoutBaseHat(canvas, base);
       canvas.renderAll();
     };
     window.addEventListener('resize', onResize);
@@ -479,6 +574,15 @@ export default function HatDesignPage() {
           <Tooltip title="Xóa tất cả">
             <IconButton onClick={handleClear}><DeleteOutline /></IconButton>
           </Tooltip>
+          <Tooltip title="Phóng to">
+            <IconButton onClick={handleZoomIn}><ZoomIn /></IconButton>
+          </Tooltip>
+          <Tooltip title="Thu nhỏ">
+            <IconButton onClick={handleZoomOut}><ZoomOut /></IconButton>
+          </Tooltip>
+          <Tooltip title="Đặt lại zoom">
+            <IconButton onClick={handleResetZoom}><CenterFocusStrong /></IconButton>
+          </Tooltip>
           <Button variant="contained" startIcon={<Save />} onClick={handleSave}>Lưu</Button>
         </Stack>
       </Box>
@@ -507,7 +611,13 @@ export default function HatDesignPage() {
             ))}
           </Box>
           <Typography variant="subtitle2" fontWeight={700} gutterBottom sx={{ mt: 3 }}>Mẹo</Typography>
-          <Typography variant="caption" color="text.secondary">Kéo thả để di chuyển đối tượng. Giữ Shift khi kéo để tỉ lệ đều.</Typography>
+          <Typography variant="caption" color="text.secondary">
+            • Kéo thả để di chuyển đối tượng<br/>
+            • Giữ Shift khi kéo để tỉ lệ đều<br/>
+            • <strong>Cuộn chuột để phóng to/thu nhỏ</strong><br/>
+            • Giữ Ctrl/Alt + kéo hoặc nút giữa chuột để di chuyển khung nhìn<br/>
+            • Double-click vào text để chỉnh sửa
+          </Typography>
         </Paper>
 
         <Box id="hat-designer-canvas-box" sx={{ flex: 1, backgroundColor: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

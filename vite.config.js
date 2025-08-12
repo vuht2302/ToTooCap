@@ -23,6 +23,9 @@ export default defineConfig({
         target: "http://54.169.159.141:3000",
         changeOrigin: true,
         secure: false,
+        // Local dev needs to strip the /api prefix because backend routes are /product/get, not /api/product/get
+        // Production (Vercel) rewrite already strips it via vercel.json
+        rewrite: (path) => path.replace(/^\/api/, ""),
       },
     },
   },

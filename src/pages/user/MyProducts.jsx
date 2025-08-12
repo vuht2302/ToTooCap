@@ -109,12 +109,32 @@ export default function MyProducts() {
     setOpenDialog(true);
   };
 
-  // Xác nhận xóa (tạm thời chỉ xóa trên UI)
-  const handleConfirmDelete = () => {
-    if (deleteIndex !== null) {
-      const updatedProducts = [...products];
-      updatedProducts.splice(deleteIndex, 1);
-      setProducts(updatedProducts);
+  // Xác nhận xóa: gọi API xóa cart item, sau đó reload hoặc cập nhật UI
+  const handleConfirmDelete = async () => {
+    if (deleteIndex === null) return;
+    const item = products[deleteIndex];
+    if (!item) return;
+    try {
+      const token = localStorage.getItem('accessToken');
+      // cart item id có thể nằm ở item._id
+      const id = item._id;
+      if (!id) throw new Error('Không tìm thấy ID cart item');
+      const res = await fetch(apiUrl(`/cart/CartItem/delete/${id}`), {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || (data.success === false)) {
+        console.error('Delete failed:', data?.message || res.status);
+        alert(data?.message || 'Xóa thất bại');
+      } else {
+        // Cập nhật UI nhanh không cần reload toàn bộ
+        setProducts(prev => prev.filter((_, i) => i !== deleteIndex));
+      }
+    } catch (e) {
+      console.error('Delete error:', e);
+      alert('Có lỗi khi xóa');
+    } finally {
       setOpenDialog(false);
       setDeleteIndex(null);
     }
@@ -241,7 +261,7 @@ export default function MyProducts() {
                     </Box>
                   </TableCell>
                   <TableCell>{product.quantity}</TableCell>
-                  <TableCell>{product.price}$</TableCell>
+                  <TableCell>{product.price} VND</TableCell>
                   <TableCell align="right">
                     <IconButton>
                       <EditIcon />

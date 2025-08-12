@@ -128,7 +128,7 @@ export default function ProductDetail() {
             <Grid item xs={12} md={5}>
               <CardMedia
                 component="img"
-                image="https://zerdio.com.vn/wp-content/uploads/2021/03/M22.jpg"
+                image={product.image_url}
                 alt={product.name}
                 sx={{ width: "100%", maxHeight: 350, objectFit: "contain" }}
               />

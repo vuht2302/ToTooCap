@@ -119,7 +119,7 @@ const HomePage = () => {
                     <CardMedia
                       component="img"
                       height="200"
-                      image="https://zerdio.com.vn/wp-content/uploads/2021/03/M22.jpg"
+                      image={product.image_url}
                       alt={product.name}
                     />
                     <CardContent>
