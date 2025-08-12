@@ -96,7 +96,7 @@ const LoginPage = () => {
   return (
     <div className="login-page">
       <div className="image-container">
-        <img className="login-logo" src={logo} alt="logo" />
+        <img className="login-logo" src={logo} alt="logo" onClick={() => navigate("/")} />
         <img className="login-image" src={image_login} alt="login visual" />
       </div>
 
