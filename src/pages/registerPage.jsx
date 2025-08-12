@@ -4,6 +4,7 @@ import image_google from "../assets/image_google.png";
 import logo from "../assets/logo.png";
 import "../assets/registerPage.css";
 import { useNavigate } from "react-router-dom";
+import { apiUrl } from "@/config/api";
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ const RegisterPage = () => {
 
   const handleSubmit = async () => {
     try {
-      const res = await fetch("http://54.169.159.141:3000/auth/register", {
+  const res = await fetch(apiUrl("/auth/register"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

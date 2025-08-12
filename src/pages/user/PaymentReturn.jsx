@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
+import { apiUrl } from "@/config/api";
 
 const PaymentReturn = () => {
   const [searchParams] = useSearchParams();
@@ -85,7 +86,7 @@ const PaymentReturn = () => {
       console.log("Updating payment status:", { paymentId, status, method }); // Debug log
 
       const response = await fetch(
-        `http://54.169.159.141:3000/payment/update/${paymentId}`,
+        apiUrl(`/payment/update/${paymentId}`),
         {
           method: "PUT", // hoặc PATCH tùy theo API của bạn
           headers: {

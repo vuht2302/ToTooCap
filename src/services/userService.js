@@ -1,12 +1,12 @@
 // User API Service
-const API_BASE_URL = "http://54.169.159.141:3000";
+import { apiUrl } from "@/config/api";
 
 class UserService {
   // Lấy danh sách tất cả người dùng
   static async getAllUsers() {
     try {
       const token = localStorage.getItem("accessToken");
-      const response = await fetch(`${API_BASE_URL}/auth/user/get`, {
+      const response = await fetch(apiUrl(`/auth/user/get`), {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -31,17 +31,14 @@ class UserService {
     const token = localStorage.getItem("accessToken");
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/auth/user/update/${userId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(userData),
-        }
-      );
+      const response = await fetch(apiUrl(`/auth/user/update/${userId}`), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(userData),
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -60,16 +57,13 @@ class UserService {
     const token = localStorage.getItem("accessToken");
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/auth/user/delete/${userId}`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(apiUrl(`/auth/user/delete/${userId}`), {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -86,7 +80,7 @@ class UserService {
   // Tạo người dùng mới (nếu có API)
   static async createUser(userData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/create`, {
+      const response = await fetch(apiUrl(`/users/create`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -110,7 +104,7 @@ class UserService {
   // Thay đổi trạng thái người dùng
   static async changeUserStatus(userId, status) {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/status/${userId}`, {
+      const response = await fetch(apiUrl(`/users/status/${userId}`), {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

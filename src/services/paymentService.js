@@ -1,11 +1,11 @@
-const API_BASE_URL = "http://54.169.159.141:3000";
+import { apiUrl } from "@/config/api";
 
 class PaymentService {
   // Tạo payment mới
   static async createPayment(orderId) {
     try {
       const token = localStorage.getItem("accessToken");
-      const response = await fetch(`${API_BASE_URL}/payment/add`, {
+      const response = await fetch(apiUrl(`/payment/add`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -33,7 +33,7 @@ class PaymentService {
     try {
       const token = localStorage.getItem("accessToken");
       const response = await fetch(
-        `${API_BASE_URL}/payment/vnpay/url?paymentId=${paymentId}`,
+        apiUrl(`/payment/vnpay/url?paymentId=${paymentId}`),
         {
           method: "GET",
           headers: {
@@ -59,20 +59,17 @@ class PaymentService {
   static async updatePaymentStatus(paymentId, status, method) {
     try {
       const token = localStorage.getItem("accessToken");
-      const response = await fetch(
-        `${API_BASE_URL}/payment/update/${paymentId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({
-            payment_status: status,
-            payment_method: method,
-          }),
-        }
-      );
+      const response = await fetch(apiUrl(`/payment/update/${paymentId}`), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          payment_status: status,
+          payment_method: method,
+        }),
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -90,7 +87,7 @@ class PaymentService {
   static async getAllPayments() {
     try {
       const token = localStorage.getItem("accessToken");
-      const response = await fetch(`${API_BASE_URL}/payment/get`, {
+      const response = await fetch(apiUrl(`/payment/get`), {
         method: "GET",
         headers: {
           "Content-Type": "application/json",

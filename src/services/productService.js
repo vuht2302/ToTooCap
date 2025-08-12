@@ -1,5 +1,5 @@
 // Product API Service
-const API_BASE_URL = "http://54.169.159.141:3000"; // API URL từ yêu cầu
+import { apiUrl } from "@/config/api";
 
 class ProductService {
   // Lấy danh sách tất cả sản phẩm
@@ -7,7 +7,7 @@ class ProductService {
     try {
       const token = localStorage.getItem("token"); // Lấy token từ localStorage nếu cần
       const response = await fetch(
-        `${API_BASE_URL}/product/get?page=${page}&limit=${limit}`,
+        apiUrl(`/product/get?page=${page}&limit=${limit}`),
         {
           method: "GET",
           headers: {
@@ -33,7 +33,7 @@ class ProductService {
   static async addProduct(productData) {
     try {
       const token = localStorage.getItem("token"); // Lấy token từ localStorage nếu cần
-      const response = await fetch(`${API_BASE_URL}/product/add`, {
+      const response = await fetch(apiUrl(`/product/add`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -57,7 +57,7 @@ class ProductService {
   // Lấy chi tiết sản phẩm theo ID
   static async getProductById(productId) {
     try {
-      const response = await fetch(`${API_BASE_URL}/product/get/${productId}`, {
+      const response = await fetch(apiUrl(`/product/get/${productId}`), {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -81,17 +81,14 @@ class ProductService {
   static async updateProduct(productId, productData) {
     try {
       const token = localStorage.getItem("token"); // Lấy token từ localStorage nếu cần
-      const response = await fetch(
-        `${API_BASE_URL}/product/update/${productId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(productData),
-        }
-      );
+      const response = await fetch(apiUrl(`/product/update/${productId}`), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(productData),
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -109,16 +106,13 @@ class ProductService {
   static async deleteProduct(productId) {
     try {
       const token = localStorage.getItem("token"); // Lấy token từ localStorage nếu cần
-      const response = await fetch(
-        `${API_BASE_URL}/product/delete/${productId}`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(apiUrl(`/product/delete/${productId}`), {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -135,7 +129,7 @@ class ProductService {
   // Lấy thống kê sản phẩm
   static async getProductStats() {
     try {
-      const response = await fetch(`${API_BASE_URL}/product/stats`, {
+      const response = await fetch(apiUrl(`/product/stats`), {
         method: "GET",
         headers: {
           "Content-Type": "application/json",

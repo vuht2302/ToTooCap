@@ -6,6 +6,7 @@ import { FabricJSCanvas, useFabricJSEditor } from 'fabricjs-react';
 import baseHat from '../../../assets/image_non.png';
 import oneSticker from '../../../assets/stickers/1.webp';
 import CloudinaryService from '../../../services/cloudinary.service';
+import { apiUrl } from '@/config/api';
 
 // A simpler, local-first hat designer: one canvas, base hat image, add text/image, color and save to localStorage.
 export default function HatDesignPage() {
@@ -278,7 +279,7 @@ export default function HatDesignPage() {
     const token = localStorage.getItem('accessToken');
     if (!userId && token) {
       try {
-        const infoRes = await fetch('http://54.169.159.141:3000/auth/user/get/loginUser', {
+  const infoRes = await fetch(apiUrl('/auth/user/get/loginUser'), {
           method: 'GET',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         });
@@ -307,7 +308,7 @@ export default function HatDesignPage() {
 
     // 6) POST to backend (create custom design)
     try {
-      const res = await fetch('http://54.169.159.141:3000/customDesign/add', {
+  const res = await fetch(apiUrl('/customDesign/add'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -331,7 +332,7 @@ export default function HatDesignPage() {
         if (createdId) {
           // 6b) Add this custom design to cart via provided API
           try {
-            const addCartRes = await fetch('http://54.169.159.141:3000/cart/CartItem/custom-design/add', {
+            const addCartRes = await fetch(apiUrl('/cart/CartItem/custom-design/add'), {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

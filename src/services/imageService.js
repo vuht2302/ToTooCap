@@ -1,11 +1,11 @@
 // Image API Service
-const API_BASE_URL = "http://54.169.159.141:3000";
+import { apiUrl } from "@/config/api";
 
 class ImageService {
   // Get all product images
   static async getAllImages() {
     try {
-      const response = await fetch(`${API_BASE_URL}/image/get`, {
+      const response = await fetch(apiUrl(`/image/get`), {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });
@@ -23,7 +23,7 @@ class ImageService {
   // Add product image
   static async addProductImage(payload) {
     try {
-      const response = await fetch(`${API_BASE_URL}/image/add/product`, {
+      const response = await fetch(apiUrl(`/image/add/product`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

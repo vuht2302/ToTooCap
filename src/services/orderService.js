@@ -1,5 +1,5 @@
 // Order API Service
-const API_BASE_URL = "http://54.169.159.141:3000";
+import { apiUrl } from "@/config/api";
 
 class OrderService {
   // Lấy danh sách tất cả đơn hàng
@@ -17,7 +17,7 @@ class OrderService {
       });
 
       const response = await fetch(
-        `${API_BASE_URL}/order/get?${queryParams.toString()}`,
+        apiUrl(`/order/get?${queryParams.toString()}`),
         {
           method: "GET",
           headers: {
@@ -44,7 +44,7 @@ class OrderService {
   static async getAllPayments() {
     try {
       const token = localStorage.getItem("accessToken");
-      const response = await fetch(`${API_BASE_URL}/payment/get`, {
+      const response = await fetch(apiUrl(`/payment/get`), {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -75,7 +75,7 @@ class OrderService {
       console.log("Getting payment URL for paymentId:", paymentId);
 
       const token = localStorage.getItem("accessToken");
-      const url = `${API_BASE_URL}/payment/vnpay/url?paymentId=${paymentId}`;
+      const url = apiUrl(`/payment/vnpay/url?paymentId=${paymentId}`);
       console.log("Payment URL API:", url);
 
       const response = await fetch(url, {
@@ -117,7 +117,7 @@ class OrderService {
   static async updateOrderStatus(orderId, status) {
     try {
       const token = localStorage.getItem("accessToken");
-      const response = await fetch(`${API_BASE_URL}/order/update/${orderId}`, {
+      const response = await fetch(apiUrl(`/order/update/${orderId}`), {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -142,7 +142,7 @@ class OrderService {
   static async getOrderById(orderId) {
     try {
       const token = localStorage.getItem("accessToken");
-      const response = await fetch(`${API_BASE_URL}/order/get/${orderId}`, {
+      const response = await fetch(apiUrl(`/order/get/${orderId}`), {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -166,7 +166,7 @@ class OrderService {
   static async deleteOrder(orderId) {
     try {
       const token = localStorage.getItem("accessToken");
-      const response = await fetch(`${API_BASE_URL}/order/delete/${orderId}`, {
+      const response = await fetch(apiUrl(`/order/delete/${orderId}`), {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",

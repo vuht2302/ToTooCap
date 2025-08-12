@@ -1,12 +1,12 @@
 // Category API Service
-const API_BASE_URL = "http://54.169.159.141:3000"; // API URL từ yêu cầu
+import { apiUrl } from "@/config/api"; // API URL helper
 
 class CategoryService {
   // Lấy danh sách tất cả danh mục
   static async getAllCategories(page = 1, limit = 10) {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/category/get?page=${page}&limit=${limit}`,
+        apiUrl(`/category/get?page=${page}&limit=${limit}`),
         {
           method: "GET",
           headers: {
@@ -31,16 +31,13 @@ class CategoryService {
   // Lấy chi tiết danh mục theo ID
   static async getCategoryById(categoryId) {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/category/get/${categoryId}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            // 'Authorization': `Bearer ${token}`
-          },
-        }
-      );
+      const response = await fetch(apiUrl(`/category/get/${categoryId}`), {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          // 'Authorization': `Bearer ${token}`
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -57,7 +54,7 @@ class CategoryService {
   // Thêm danh mục mới
   static async addCategory(categoryData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/category/add`, {
+      const response = await fetch(apiUrl(`/category/add`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -81,17 +78,14 @@ class CategoryService {
   // Cập nhật danh mục
   static async updateCategory(categoryId, categoryData) {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/category/update/${categoryId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            // 'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(categoryData),
-        }
-      );
+      const response = await fetch(apiUrl(`/category/update/${categoryId}`), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          // 'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(categoryData),
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -108,16 +102,13 @@ class CategoryService {
   // Xóa danh mục
   static async deleteCategory(categoryId) {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/category/delete/${categoryId}`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            // 'Authorization': `Bearer ${token}`
-          },
-        }
-      );
+      const response = await fetch(apiUrl(`/category/delete/${categoryId}`), {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          // 'Authorization': `Bearer ${token}`
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -134,7 +125,7 @@ class CategoryService {
   // Lấy thống kê danh mục
   static async getCategoryStats() {
     try {
-      const response = await fetch(`${API_BASE_URL}/category/stats`, {
+      const response = await fetch(apiUrl(`/category/stats`), {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
