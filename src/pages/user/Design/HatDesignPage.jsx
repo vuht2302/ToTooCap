@@ -37,10 +37,13 @@ export default function HatDesignPage() {
         const ch = canvas.getHeight();
         const targetW = cw * 0.5;
         const scale = targetW / img.width;
+        const left = cw / 2 - (img.width * scale) / 2;
+        const top = ch / 2 - (img.height * scale) / 2; // center vertically
         img.set({
           scaleX: scale,
           scaleY: scale,
-          left: cw / 2 - (img.width * scale) / 2,
+          left,
+          top,
           selectable: false,
           evented: false,
           name: 'baseHat',
@@ -406,6 +409,20 @@ export default function HatDesignPage() {
       if (!c) return;
       canvas.setWidth(c.clientWidth);
       canvas.setHeight(Math.max(480, Math.round((c.clientWidth * 2) / 3)));
+      // Re-center base hat image
+      const base = canvas.getObjects().find(o => o.isBaseHat || o.name === 'baseHat');
+      if (base) {
+        const cw = canvas.getWidth();
+        const ch = canvas.getHeight();
+        const targetW = cw * 0.5;
+        const scale = targetW / base.width; // original width preserved
+        base.set({
+          scaleX: scale,
+          scaleY: scale,
+          left: cw / 2 - (base.width * scale) / 2,
+          top: ch / 2 - (base.height * scale) / 2,
+        });
+      }
       canvas.renderAll();
     };
     window.addEventListener('resize', onResize);
