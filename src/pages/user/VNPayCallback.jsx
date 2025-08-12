@@ -3,7 +3,6 @@ import { Box, Typography, CircularProgress, Button } from "@mui/material";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
-import { API_BASE_URL } from "../../config/api";
 
 export default function VNPayCallback() {
   const [searchParams] = useSearchParams();
@@ -18,7 +17,7 @@ export default function VNPayCallback() {
         const callbackUrl = window.location.href;
 
         const response = await fetch(
-          `${API_BASE_URL}/payment/vnpay/return`,
+          "http://54.169.159.141:3000/payment/vnpay/return",
           {
             method: "GET",
             headers: {

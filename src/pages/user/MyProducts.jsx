@@ -25,7 +25,6 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Sidebar from '../../components/Sidebar';
-import { API_BASE_URL } from '../../config/api';
 import { UserContext } from '../../context/UserContext';
 
 export default function MyProducts() {
@@ -40,7 +39,7 @@ export default function MyProducts() {
     if (!cartId) return;
     try {
       const token = localStorage.getItem('accessToken');
-  const res = await fetch(`${API_BASE_URL}/cart/CartItem/getByCartId/${cartId}`, {
+      const res = await fetch(`http://54.169.159.141:3000/cart/CartItem/getByCartId/${cartId}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       });
@@ -57,7 +56,7 @@ export default function MyProducts() {
             try {
               if (cid) {
                 isCustom = true;
-                const cRes = await fetch(`${API_BASE_URL}/customDesign/get/${cid}`, {
+                const cRes = await fetch(`http://54.169.159.141:3000/customDesign/get/${cid}`, {
                   headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
                 });
                 const cJson = await cRes.json();
@@ -65,7 +64,7 @@ export default function MyProducts() {
                   details = cJson.data;
                 }
               } else if (pid) {
-                const pRes = await fetch(`${API_BASE_URL}/product/get/${pid}`, {
+                const pRes = await fetch(`http://54.169.159.141:3000/product/get/${pid}`, {
                   headers: { 'Content-Type': 'application/json' },
                 });
                 const pJson = await pRes.json();

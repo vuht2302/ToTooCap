@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "../config/api";
+const API_BASE_URL = "http://54.169.159.141:3000";
 
 class PaymentService {
   // Tạo payment mới

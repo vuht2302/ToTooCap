@@ -1,8 +1,6 @@
-import { API_BASE_URL } from "../config/api";
-
 export const fetchAllProducts = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/product/get`);
+    const response = await fetch("http://54.169.159.141:3000/product/get");
     if (!response.ok) {
       throw new Error("Failed to fetch products");
     }

@@ -116,7 +116,7 @@ export default function ProductDesignDetail() {
           {/* Cột phải - nội dung */}
           <Box sx={{ flex: 1 }}>
             <Typography variant="h6" fontWeight="bold">
-              ProductName: {product.name}
+           {product.name}
             </Typography>
 
             <Typography

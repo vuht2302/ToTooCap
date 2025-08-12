@@ -1,5 +1,5 @@
 // Category API Service
-import { API_BASE_URL } from "../config/api";
+const API_BASE_URL = "http://54.169.159.141:3000"; // API URL từ yêu cầu
 
 class CategoryService {
   // Lấy danh sách tất cả danh mục

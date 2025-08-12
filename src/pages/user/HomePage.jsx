@@ -137,7 +137,7 @@ const HomePage = () => {
                         fontWeight="bold"
                         gutterBottom
                       >
-                        Giá: {product.price} VND
+                        Giá: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(product.price)}
                       </Typography>
                       {/* Số lượng tồn kho */}
                       <Typography variant="body2" color="textSecondary">

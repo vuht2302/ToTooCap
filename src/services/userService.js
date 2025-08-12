@@ -1,5 +1,5 @@
 // User API Service
-import { API_BASE_URL } from "../config/api";
+const API_BASE_URL = "http://54.169.159.141:3000";
 
 class UserService {
   // Lấy danh sách tất cả người dùng
