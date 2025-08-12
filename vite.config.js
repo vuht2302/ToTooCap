@@ -18,6 +18,13 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true, // will open http://localhost:3000/ (correct) when base=/
+    proxy: {
+      "/api": {
+        target: "http://54.169.159.141:3000",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   resolve: {
     alias: {
