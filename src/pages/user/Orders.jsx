@@ -20,12 +20,13 @@ import {
 } from "@mui/material";
 import Sidebar from "../../components/Sidebar";
 import SearchIcon from "@mui/icons-material/Search";
-import PaymentIcon from "@mui/icons-material/Payment";
+import QrCodeIcon from "@mui/icons-material/QrCode";
 import VisibilityIcon from "@mui/icons-material/Visibility";
-import PaymentService from "../../services/paymentService";
 import OrderService from "../../services/orderService";
 import TransactionDetailDialog from "../../components/user/TransactionDetailDialog ";
+import QRPaymentDialog from "../../components/user/QRPaymentDialog";
 import { formatCurrency, formatDate } from "../../utils/format";
+
 const statusFilters = ["All", "Processing", "Done", "Cancelled"];
 
 export default function Orders() {
@@ -48,6 +49,13 @@ export default function Orders() {
     open: false,
     paymentDetail: null,
     loading: false,
+  });
+
+  // State cho QR dialog
+  const [qrDialog, setQrDialog] = useState({
+    open: false,
+    selectedOrders: [],
+    totalAmount: 0,
   });
 
   // Lấy user info một lần và lưu vào state để tránh re-parse
@@ -213,17 +221,7 @@ export default function Orders() {
     setSelectedOrders(newSelected);
   };
 
-  // Get payment URL using service
-  const getPaymentUrl = async (paymentId) => {
-    try {
-      return await OrderService.getVNPayPaymentUrl(paymentId);
-    } catch (error) {
-      console.error("Get payment URL error:", error);
-      throw error;
-    }
-  };
-
-  // Handle payment for selected orders
+  // Handle payment for selected orders - Updated
   const handlePayment = async () => {
     if (selectedOrders.size === 0) {
       setSnackbar({
@@ -234,104 +232,48 @@ export default function Orders() {
       return;
     }
 
-    setPaymentLoading(true);
-    const successfulPayments = [];
-    const failedPayments = [];
-    const createdPaymentIds = [];
+    // Tính tổng tiền các đơn hàng được chọn
+    const selectedOrdersList = Array.from(selectedOrders);
+    const selectedOrdersData = orders.filter((order) =>
+      selectedOrdersList.includes(order._id)
+    );
+    const totalAmount = selectedOrdersData.reduce(
+      (sum, order) => sum + order.total_amount,
+      0
+    );
 
-    try {
-      for (const orderId of selectedOrders) {
-        console.log("Creating payment for order:", orderId);
+    // Mở dialog hiển thị QR code
+    setQrDialog({
+      open: true,
+      selectedOrders: selectedOrdersData,
+      totalAmount: totalAmount,
+    });
+  };
 
-        if (!orderId) {
-          console.error("Invalid orderId:", orderId);
-          continue;
-        }
+  // Handle close QR dialog
+  const handleCloseQRDialog = () => {
+    setQrDialog({
+      open: false,
+      selectedOrders: [],
+      totalAmount: 0,
+    });
+  };
 
-        try {
-          const paymentData = await PaymentService.createPayment(orderId);
+  // Handle confirm payment (chỉ đóng dialog, không cập nhật trạng thái)
+  const handleConfirmPayment = () => {
+    // Hiển thị thông báo xác nhận
+    setSnackbar({
+      open: true,
+      message:
+        "Cảm ơn bạn đã xác nhận. Chúng tôi sẽ kiểm tra và cập nhật trạng thái thanh toán trong thời gian sớm nhất.",
+      severity: "info",
+    });
 
-          if (paymentData.success && paymentData.data?._id) {
-            successfulPayments.push(orderId);
-            createdPaymentIds.push(paymentData.data._id);
-            console.log("Created payment ID:", paymentData.data._id);
-          } else {
-            failedPayments.push({
-              orderId,
-              message: paymentData.message || "Thanh toán thất bại",
-            });
-          }
-        } catch (error) {
-          console.error(
-            "Payment creation error for order",
-            orderId,
-            ":",
-            error
-          );
-          failedPayments.push({ orderId, message: "Lỗi kết nối" });
-        }
-      }
+    // Reset selected orders
+    setSelectedOrders(new Set());
 
-      if (successfulPayments.length > 0) {
-        setSnackbar({
-          open: true,
-          message: `Tạo thanh toán thành công cho ${successfulPayments.length} đơn hàng`,
-          severity: "success",
-        });
-
-        setSelectedOrders(new Set());
-        await fetchOrders();
-        await fetchPayments();
-
-        if (createdPaymentIds.length > 0) {
-          const firstPaymentId = createdPaymentIds[0];
-          console.log("Using payment ID for URL:", firstPaymentId);
-
-          try {
-            const paymentUrl = await getPaymentUrl(firstPaymentId);
-            console.log("Payment URL received:", paymentUrl);
-
-            if (paymentUrl && paymentUrl !== "undefined") {
-              window.location.href = paymentUrl;
-            } else {
-              throw new Error("URL thanh toán không hợp lệ");
-            }
-          } catch (error) {
-            console.error("Get payment URL error:", error);
-            setSnackbar({
-              open: true,
-              message:
-                "Tạo payment thành công nhưng không thể chuyển đến trang thanh toán",
-              severity: "warning",
-            });
-          }
-        } else {
-          console.error("No payment IDs created");
-          setSnackbar({
-            open: true,
-            message: "Không thể lấy ID thanh toán",
-            severity: "error",
-          });
-        }
-      }
-
-      if (failedPayments.length > 0) {
-        setSnackbar({
-          open: true,
-          message: `${failedPayments.length} đơn hàng thanh toán thất bại`,
-          severity: "error",
-        });
-      }
-    } catch (error) {
-      console.error("Payment error:", error);
-      setSnackbar({
-        open: true,
-        message: "Có lỗi xảy ra khi tạo thanh toán",
-        severity: "error",
-      });
-    } finally {
-      setPaymentLoading(false);
-    }
+    // Đóng dialog
+    handleCloseQRDialog();
   };
 
   // Filter orders với logic mới
@@ -468,7 +410,7 @@ export default function Orders() {
           {selectedOrders.size > 0 && (
             <Button
               variant="contained"
-              startIcon={<PaymentIcon />}
+              startIcon={<QrCodeIcon />}
               onClick={handlePayment}
               disabled={paymentLoading}
               sx={{
@@ -478,9 +420,7 @@ export default function Orders() {
                 },
               }}
             >
-              {paymentLoading
-                ? "Đang xử lý..."
-                : `Thanh toán (${selectedOrders.size})`}
+              Thanh toán QR ({selectedOrders.size})
             </Button>
           )}
         </Box>
@@ -631,7 +571,16 @@ export default function Orders() {
           </Table>
         </TableContainer>
 
-        {/* Sử dụng TransactionDetailDialog component */}
+        {/* QR Payment Dialog */}
+        <QRPaymentDialog
+          open={qrDialog.open}
+          onClose={handleCloseQRDialog}
+          selectedOrders={qrDialog.selectedOrders}
+          totalAmount={qrDialog.totalAmount}
+          onConfirmPayment={handleConfirmPayment}
+        />
+
+        {/* Transaction Detail Dialog */}
         <TransactionDetailDialog
           open={detailDialog.open}
           onClose={handleCloseDetailDialog}
