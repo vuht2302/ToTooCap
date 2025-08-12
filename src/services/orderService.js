@@ -245,6 +245,31 @@ class OrderService {
         return "Processing";
     }
   }
+
+  // Xóa đơn hàng
+  static async deleteOrder(orderId) {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const response = await fetch(apiUrl(`/order/delete/${orderId}`), {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Order deleted successfully:", data);
+      return data;
+    } catch (error) {
+      console.error("Error deleting order:", error);
+      throw error;
+    }
+  }
 }
 
 export default OrderService;
