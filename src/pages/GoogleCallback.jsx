@@ -2,7 +2,7 @@ import React, { useEffect, useContext } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { apiUrl } from '@/config/api';
-import GoogleAuthService from '../services/googleAuth.service';
+import GOOGLE_OAUTH_CONFIG from '../config/googleOAuth';
 
 const GoogleCallback = () => {
   const navigate = useNavigate();
@@ -16,9 +16,11 @@ const GoogleCallback = () => {
         const code = searchParams.get('code');
         const error = searchParams.get('error');
 
+        console.log('URL params - code:', code, 'error:', error);
+
         if (error) {
           console.error('Google OAuth error:', error);
-          alert('Đăng nhập Google thất bại!');
+          alert(`Đăng nhập Google thất bại: ${error}`);
           navigate('/login');
           return;
         }
@@ -29,45 +31,115 @@ const GoogleCallback = () => {
           return;
         }
 
-        // Gửi code đến backend để xử lý
-        const result = await GoogleAuthService.handleGoogleCallback(code);
+        // Thêm timeout cho API call
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), GOOGLE_OAUTH_CONFIG.API_TIMEOUT);
 
-        if (result.success) {
-          const data = result.data;
-          // Lưu token vào localStorage
-          localStorage.setItem('accessToken', data.accessToken);
-          localStorage.setItem('refreshToken', data.refreshToken);
-
-          // Gọi API để lấy thông tin user
-          const infoRes = await fetch(apiUrl('/auth/user/get/loginUser'), {
-            method: 'GET',
+        // Thử gọi trực tiếp API backend thay vì qua service
+        try {
+          if (GOOGLE_OAUTH_CONFIG.DEBUG) {
+            console.log('Calling backend directly...');
+          }
+          
+          const response = await fetch(GOOGLE_OAUTH_CONFIG.CALLBACK_ENDPOINT, {
+            method: 'POST',
             headers: {
-              Authorization: `Bearer ${data.accessToken}`,
               'Content-Type': 'application/json',
             },
+            body: JSON.stringify({ code }),
+            signal: controller.signal
           });
 
-          const infoData = await infoRes.json();
+          clearTimeout(timeoutId);
 
-          if (infoRes.ok && infoData.success && infoData.data) {
-            const role = infoData.data.role;
-            localStorage.setItem('user', JSON.stringify(infoData.data));
-            setUser(infoData.data);
+          if (GOOGLE_OAUTH_CONFIG.DEBUG) {
+            console.log('Direct API response status:', response.status);
+          }
+          
+          const data = await response.json();
+          
+          if (GOOGLE_OAUTH_CONFIG.DEBUG) {
+            console.log('Direct API response data:', data);
+          }
 
-            // Chuyển hướng dựa trên role
-            if (role === 'customer') {
-              navigate('/');
-            } else if (role === 'manager') {
-              navigate('/manager');
-            } else if (role === 'admin') {
-              navigate('/admin');
+          if (response.ok) {
+            // Xử lý các format response khác nhau
+            let accessToken = data.accessToken || data.access_token || data.token;
+            let refreshToken = data.refreshToken || data.refresh_token;
+            let userData = data.user || data.data?.user || data.data;
+
+            if (accessToken) {
+              // Có token - lưu và lấy thông tin user
+              localStorage.setItem('accessToken', accessToken);
+              if (refreshToken) {
+                localStorage.setItem('refreshToken', refreshToken);
+              }
+
+              // Nếu có user data luôn thì dùng luôn
+              if (userData && userData.role) {
+                localStorage.setItem('user', JSON.stringify(userData));
+                setUser(userData);
+                
+                const role = userData.role;
+                const redirectPath = GOOGLE_OAUTH_CONFIG.ROLE_REDIRECTS[role] || '/';
+                navigate(redirectPath);
+                return;
+              }
+
+              // Nếu không có user data, gọi API để lấy
+              try {
+                const infoRes = await fetch(apiUrl('/auth/user/get/loginUser'), {
+                  method: 'GET',
+                  headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json',
+                  },
+                });
+
+                const infoData = await infoRes.json();
+
+                if (infoRes.ok && infoData.success && infoData.data) {
+                  const role = infoData.data.role;
+                  localStorage.setItem('user', JSON.stringify(infoData.data));
+                  setUser(infoData.data);
+
+                  const redirectPath = GOOGLE_OAUTH_CONFIG.ROLE_REDIRECTS[role] || '/';
+                  navigate(redirectPath);
+                } else {
+                  alert('Không lấy được thông tin người dùng!');
+                  navigate('/login');
+                }
+              } catch (userInfoError) {
+                console.error('Error getting user info:', userInfoError);
+                alert('Lỗi khi lấy thông tin người dùng!');
+                navigate('/login');
+              }
+            } else {
+              // Không có token - có thể backend trả về luôn user info
+              if (userData && userData.role) {
+                localStorage.setItem('user', JSON.stringify(userData));
+                setUser(userData);
+                
+                const role = userData.role;
+                const redirectPath = GOOGLE_OAUTH_CONFIG.ROLE_REDIRECTS[role] || '/';
+                navigate(redirectPath);
+              } else {
+                alert('Không nhận được thông tin đăng nhập từ server!');
+                navigate('/login');
+              }
             }
           } else {
-            alert(infoData.message || 'Không lấy được thông tin người dùng!');
+            alert(data.message || 'Đăng nhập Google thất bại!');
             navigate('/login');
           }
-        } else {
-          alert(result.error || 'Đăng nhập Google thất bại!');
+        } catch (apiError) {
+          console.error('Direct API call failed:', apiError);
+          
+          if (apiError.name === 'AbortError') {
+            alert('Kết nối quá chậm. Vui lòng thử lại!');
+          } else {
+            alert(`Không thể kết nối với server: ${apiError.message}`);
+          }
           navigate('/login');
         }
       } catch (error) {
