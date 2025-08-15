@@ -2,7 +2,6 @@ import React, { useEffect, useContext } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { apiUrl } from '@/config/api';
-import API_CONFIG from '../utils/apiConfig';
 
 const GoogleCallback = () => {
   const navigate = useNavigate();
@@ -16,7 +15,7 @@ const GoogleCallback = () => {
         const code = searchParams.get('code');
         const error = searchParams.get('error');
 
-        console.log('Google Callback - URL params:', { code: code?.substring(0, 20) + '...', error });
+        console.log('URL params - code:', code, 'error:', error);
 
         if (error) {
           console.error('Google OAuth error:', error);
@@ -33,23 +32,52 @@ const GoogleCallback = () => {
 
         // Gọi API callback với GET method và code parameter
         console.log('Calling Google callback API...');
-        const callbackUrl = `${API_CONFIG.BASE_URL}/auth/google/callback?code=${encodeURIComponent(code)}`;
+        const callbackUrl = `http://54.169.159.141:3000/auth/google/callback?code=${encodeURIComponent(code)}`;
         
-        const result = await API_CONFIG.safeFetch(callbackUrl, {
-          method: 'GET'
+        const response = await fetch(callbackUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
         });
 
-        console.log('API result:', { ok: result.ok, status: result.status, data: result.data });
+        console.log('API response status:', response.status);
+        const data = await response.json();
+        console.log('API response data:', data);
 
-        if (result.ok && result.data.success) {
-          // Response format: { "success": true, "message": "Logged in successful", "accessToken": "string" }
-          const accessToken = result.data.accessToken;
+        if (response.ok) {
+          // Xử lý response thành công
+          const accessToken = data.accessToken || data.access_token || data.token;
+          const refreshToken = data.refreshToken || data.refresh_token;
+          const userData = data.user || data.data?.user || data.data;
 
           if (accessToken) {
-            // Lưu access token
+            // Lưu tokens
             localStorage.setItem('accessToken', accessToken);
+            if (refreshToken) {
+              localStorage.setItem('refreshToken', refreshToken);
+            }
 
-            // Lấy thông tin user từ API riêng
+            // Nếu có thông tin user luôn
+            if (userData && userData.role) {
+              localStorage.setItem('user', JSON.stringify(userData));
+              setUser(userData);
+              
+              // Redirect theo role
+              switch (userData.role) {
+                case 'admin':
+                  navigate('/admin');
+                  break;
+                case 'manager':
+                  navigate('/manager');
+                  break;
+                default:
+                  navigate('/');
+              }
+              return;
+            }
+
+            // Nếu chưa có user info, gọi API để lấy
             try {
               const userResponse = await fetch(apiUrl('/auth/user/get/loginUser'), {
                 method: 'GET',
@@ -76,8 +104,6 @@ const GoogleCallback = () => {
                   default:
                     navigate('/');
                 }
-                
-                console.log('Login successful, redirecting...');
               } else {
                 throw new Error('Failed to get user info');
               }
@@ -86,29 +112,34 @@ const GoogleCallback = () => {
               alert('Không thể lấy thông tin người dùng!');
               navigate('/login');
             }
+          } else if (userData && userData.role) {
+            // Trường hợp backend trả về thông tin user mà không có token riêng
+            localStorage.setItem('user', JSON.stringify(userData));
+            setUser(userData);
+            
+            switch (userData.role) {
+              case 'admin':
+                navigate('/admin');
+                break;
+              case 'manager':
+                navigate('/manager');
+                break;
+              default:
+                navigate('/');
+            }
           } else {
-            alert('Không nhận được access token từ server!');
+            alert('Không nhận được thông tin đăng nhập từ server!');
             navigate('/login');
           }
         } else {
           // API response không thành công
-          console.error('API Error:', result.data);
-          alert(result.data.message || 'Đăng nhập Google thất bại!');
+          console.error('API Error:', data);
+          alert(data.message || 'Đăng nhập Google thất bại!');
           navigate('/login');
         }
       } catch (error) {
         console.error('Error during Google callback:', error);
-        
-        // Xử lý các loại lỗi cụ thể cho Vercel deployment
-        if (error.message.includes('CORS')) {
-          alert('Lỗi CORS: Không thể kết nối với server từ domain này!');
-        } else if (error.message.includes('HTTPS')) {
-          alert('Lỗi Mixed Content: Server cần hỗ trợ HTTPS!');
-        } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
-          alert('Không thể kết nối với server. Vui lòng kiểm tra:\\n1. Server có chạy không\\n2. CORS được cấu hình đúng\\n3. HTTPS được hỗ trợ');
-        } else {
-          alert('Có lỗi xảy ra trong quá trình đăng nhập!');
-        }
+        alert('Có lỗi xảy ra trong quá trình đăng nhập!');
         navigate('/login');
       }
     };
