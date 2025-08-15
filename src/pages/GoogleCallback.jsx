@@ -32,22 +32,29 @@ const GoogleCallback = () => {
 
         console.log("Received code from Google:", code);
 
-        // Gửi code tới backend qua query parameter (không có body)
-        const response = await fetch(
-          apiUrl(`/auth/google/callback?code=${encodeURIComponent(code)}`),
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            // Không có body cho GET request
-          }
-        );
+        // Tương tự như VNPayCallback - gửi toàn bộ URL hiện tại
+        const token = localStorage.getItem("accessToken");
+        const currentUrl = window.location.href;
+
+        console.log("Sending current URL to backend:", currentUrl);
+
+        const response = await fetch(apiUrl("/auth/google/callback"), {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          // Không có body cho GET request
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
         const data = await response.json();
         console.log("Backend response:", data);
 
-        if (response.ok && data.success) {
+        if (data.success) {
           // Lưu token
           localStorage.setItem("accessToken", data.accessToken);
           localStorage.setItem("refreshToken", data.refreshToken);
@@ -71,7 +78,7 @@ const GoogleCallback = () => {
         }
       } catch (error) {
         console.error("Google callback error:", error);
-        alert("Có lỗi xảy ra trong quá trình đăng nhập");
+        alert("Có lỗi xảy ra trong quá trình đăng nhập: " + error.message);
         navigate("/login");
       }
     };
