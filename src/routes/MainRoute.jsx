@@ -39,7 +39,6 @@ const MainRoute = () => {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/user" element={<UserPage />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/google" element={<GoogleCallback />} />
         <Route path="/auth/google/callback" element={<GoogleCallback />} />
         <Route path="/my-account" element={<UserPage />} />
         <Route path="/my-products" element={<MyProducts />} />
