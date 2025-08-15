@@ -44,8 +44,9 @@ import {
   Download
 } from '@mui/icons-material';
 
-// Import OrderService
+// Import OrderService and apiUrl
 import OrderService from '../../services/orderService';
+import { apiUrl } from '../../config/api';
 
 const getStatusColor = (status) => {
   switch (status?.toLowerCase()) {
@@ -60,6 +61,8 @@ const getStatusColor = (status) => {
       return 'primary';
     case 'delivered':
     case 'đã giao':
+    case 'done':
+    case 'hoàn thành':
       return 'success';
     case 'cancelled':
     case 'đã hủy':
@@ -87,6 +90,7 @@ const getPriorityColor = (priority) => {
 
 const OrderTable = () => {
   const [orders, setOrders] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -101,35 +105,163 @@ const OrderTable = () => {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [orderDetails, setOrderDetails] = useState(null);
 
-  // Load orders when component mounts
+  // Load orders and users when component mounts
   useEffect(() => {
-    loadOrders();
+    loadOrdersAndUsers();
   }, []);
 
-  const loadOrders = async () => {
+  const loadUsers = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(apiUrl('/auth/user/get'), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      
+      const data = await response.json();
+      if (response.ok && data.success) {
+        return data.data || [];
+      }
+      return [];
+    } catch (err) {
+      console.error('Error loading users:', err);
+      return [];
+    }
+  };
+
+  const loadOrderItems = async (orderId) => {
+    try {
+      // The API returns all order items with pagination, so we need to get all items
+      // and filter by orderId on the client side
+      const response = await fetch(apiUrl(`/order/orderItem/get?currentPage=1&limit=100&sortBy=createdAt&sortOrder=desc`), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        // Filter items by the specific orderId
+        const filteredItems = data.data.filter(item => item.order_id === orderId);
+        return filteredItems || [];
+      }
+      return [];
+    } catch (err) {
+      console.error('Error loading order items:', err);
+      return [];
+    }
+  };
+
+  const loadProductDetails = async (productId) => {
+    try {
+      const response = await fetch(apiUrl(`/product/get/${productId}`), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        return data.data;
+      }
+      return null;
+    } catch (err) {
+      console.error('Error loading product details:', err);
+      return null;
+    }
+  };
+
+  const formatExpectedDeliveryDate = (orderDate) => {
+    const date = new Date(orderDate);
+    date.setDate(date.getDate() + 5);
+    return date.toLocaleDateString('vi-VN');
+  };
+
+  const loadOrdersAndUsers = async () => {
   try {
     setLoading(true);
     setError(null);
-    const orderData = await OrderService.getAllOrders();
-    // Map lại dữ liệu cho đúng format UI
-    const mappedOrders = Array.isArray(orderData.data)
-      ? orderData.data.map(order => ({
-          _id: order._id,
-          orderNumber: order._id, // hoặc tạo số đơn hàng riêng nếu có
-          customerName: order.customerName || 'Khách hàng',
-          customerEmail: order.customerEmail || '',
-          productName: order.productName || '', // hoặc lấy từ items nếu có
-          items: order.items || [],
-          quantity: order.quantity || 1,
-          totalAmount: order.total_amount,
-          status: order.status,
-          paymentMethod: order.payment_method,
-          createdAt: order.createdAt || order.order_date,
-          expectedDelivery: order.expectedDelivery || '',
-          deliveryDate: order.deliveryDate || '',
-          shippingAddress: order.shipping_address,
-        }))
-      : [];
+    
+    // Load both orders and users in parallel
+    const [orderData, usersData] = await Promise.all([
+      OrderService.getAllOrders(),
+      loadUsers()
+    ]);
+    
+    setUsers(usersData);
+    
+    // Helper function to find user by ID
+    const findUserById = (userId) => {
+      return usersData.find(user => user._id === userId) || null;
+    };
+    
+    // Map orders with user information and load items
+    const mappedOrders = await Promise.all(
+      Array.isArray(orderData.data)
+        ? orderData.data.map(async (order) => {
+            const user = findUserById(order.user_id);
+            const orderItems = await loadOrderItems(order._id);
+            
+            // Load product details for each order item
+            const itemsWithProductDetails = await Promise.all(
+              orderItems.map(async (item, index) => {
+                
+                if (item.product_id) {
+                  const productDetails = await loadProductDetails(item.product_id);
+                  
+                  const processedItem = {
+                    ...item,
+                    product_name: productDetails ? productDetails.name : 'Sản phẩm không xác định',
+                    product_description: productDetails ? productDetails.description : '',
+                    product_price: productDetails ? productDetails.price : item.unit_price || 0,
+                    product_image: productDetails ? productDetails.image_url : '',
+                    price: item.unit_price || 0, // Use unit_price from the order item
+                    quantity: item.quantity || 1,
+                  };
+                  return processedItem;
+                } else {
+                  const fallbackItem = {
+                    ...item,
+                    product_name: item.product_name || 'Sản phẩm không xác định',
+                    price: item.unit_price || 0,
+                    quantity: item.quantity || 1,
+                  };
+                  return fallbackItem;
+                }
+              })
+            );
+            
+            const mappedOrder = {
+              _id: order._id,
+              orderNumber: order._id,
+              customerName: user ? user.username : 'Khách hàng',
+              customerEmail: user ? user.email : 'N/A',
+              customerPhone: user ? user.phone : 'N/A',
+              customerAddress: user ? user.address : 'N/A',
+              productName: itemsWithProductDetails.length > 0 ? itemsWithProductDetails[0].product_name : 'N/A',
+              items: itemsWithProductDetails,
+              quantity: itemsWithProductDetails.reduce((sum, item) => sum + (item.quantity || 0), 0),
+              totalAmount: order.total_amount,
+              status: order.status,
+              paymentMethod: order.payment_method,
+              createdAt: order.createdAt || order.order_date,
+              expectedDelivery: formatExpectedDeliveryDate(order.createdAt || order.order_date),
+              deliveryDate: order.deliveryDate || '',
+              shippingAddress: order.shipping_address,
+              user_id: order.user_id,
+            };
+            return mappedOrder;
+          })
+        : []
+    );
+    
     setOrders(mappedOrders);
   } catch (err) {
     setError('Không thể tải danh sách đơn hàng. Vui lòng thử lại.');
@@ -178,15 +310,72 @@ const OrderTable = () => {
 
   const handleMenuClose = () => {
     setAnchorEl(null);
-    setSelectedOrder(null);
+    // Don't clear selectedOrder here as it might be needed for dialogs
   };
 
   const handleViewDetails = async () => {
     try {
-      const details = await OrderService.getOrderById(selectedOrder.id);
-      setOrderDetails(details);
+      if (!selectedOrder) {
+        console.error('No order selected for viewing details');
+        setSnackbar({
+          open: true,
+          message: 'Không có đơn hàng được chọn để xem chi tiết.',
+          severity: 'error'
+        });
+        return;
+      }
+
+      const orderId = selectedOrder._id || selectedOrder.id;
+      if (!orderId) {
+        console.error('Order ID not found:', selectedOrder);
+        setSnackbar({
+          open: true,
+          message: 'Không tìm thấy ID đơn hàng.',
+          severity: 'error'
+        });
+        return;
+      }
+
+      setAnchorEl(null); // Close menu but keep selectedOrder
       setDialogType('view');
       setOpenDialog(true);
+
+      const [details, items] = await Promise.all([
+        OrderService.getOrderById(orderId),
+        loadOrderItems(orderId)
+      ]);
+      
+      // Load product details for each item
+      const itemsWithProductDetails = await Promise.all(
+        items.map(async (item) => {
+          if (item.product_id) {
+            const productDetails = await loadProductDetails(item.product_id);
+            return {
+              ...item,
+              product_name: productDetails ? productDetails.name : 'Sản phẩm không xác định',
+              product_description: productDetails ? productDetails.description : '',
+              product_price: productDetails ? productDetails.price : item.unit_price || 0,
+              product_image: productDetails ? productDetails.image_url : '',
+              price: item.unit_price || 0,
+              quantity: item.quantity || 1,
+            };
+          }
+          return {
+            ...item,
+            product_name: item.product_name || 'Sản phẩm không xác định',
+            price: item.unit_price || 0,
+            quantity: item.quantity || 1,
+          };
+        })
+      );
+      
+      // Merge the details with the loaded items
+      const detailsWithItems = {
+        ...details,
+        items: itemsWithProductDetails
+      };
+      
+      setOrderDetails(detailsWithItems);
     } catch (err) {
       setSnackbar({
         open: true,
@@ -194,51 +383,109 @@ const OrderTable = () => {
         severity: 'error'
       });
     }
-    handleMenuClose();
   };
 
   const handleStatusChange = async (newStatus) => {
+    if (!selectedOrder) return;
+    
     try {
-      await OrderService.updateOrderStatus(selectedOrder.id, newStatus);
-      setSnackbar({
-        open: true,
-        message: 'Cập nhật trạng thái đơn hàng thành công!',
-        severity: 'success'
+      setAnchorEl(null); // Close menu but keep selectedOrder
+      const token = localStorage.getItem('accessToken');
+      const orderId = selectedOrder._id || selectedOrder.id;
+      
+      const response = await fetch(apiUrl(`/order/update/${orderId}`), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ status: newStatus }),
       });
-      loadOrders(); // Reload data
+
+      const data = await response.json();
+      
+      if (response.ok && (data.success === undefined || data.success)) {
+        setSnackbar({
+          open: true,
+          message: 'Cập nhật trạng thái đơn hàng thành công!',
+          severity: 'success'
+        });
+        loadOrdersAndUsers(); // Reload data
+      } else {
+        throw new Error(data.message || 'Cập nhật thất bại');
+      }
     } catch (err) {
+      console.error('Update order status error:', err);
       setSnackbar({
         open: true,
-        message: 'Không thể cập nhật trạng thái đơn hàng.',
+        message: err.message || 'Không thể cập nhật trạng thái đơn hàng.',
         severity: 'error'
       });
     }
-    handleMenuClose();
+    setSelectedOrder(null); // Clear after operation
   };
 
   const handleDelete = () => {
+    if (!selectedOrder) {
+      console.error('No order selected for deletion');
+      setSnackbar({
+        open: true,
+        message: 'Không có đơn hàng được chọn để xóa.',
+        severity: 'error'
+      });
+      return;
+    }
+    setAnchorEl(null); // Close menu but keep selectedOrder
     setDialogType('delete');
     setOpenDialog(true);
-    handleMenuClose();
   };
 
   const handleDeleteConfirm = async () => {
     try {
-      await OrderService.deleteOrder(selectedOrder.id);
+      if (!selectedOrder) {
+        console.error('No order selected for deletion');
+        setSnackbar({
+          open: true,
+          message: 'Không có đơn hàng được chọn để xóa.',
+          severity: 'error'
+        });
+        return;
+      }
+
+      const orderId = selectedOrder._id || selectedOrder.id;
+      if (!orderId) {
+        console.error('Order ID not found:', selectedOrder);
+        setSnackbar({
+          open: true,
+          message: 'Không tìm thấy ID đơn hàng.',
+          severity: 'error'
+        });
+        return;
+      }
+
+      await OrderService.deleteOrder(orderId);
       setSnackbar({
         open: true,
         message: 'Xóa đơn hàng thành công!',
         severity: 'success'
       });
       setOpenDialog(false);
-      loadOrders(); // Reload data
+      setSelectedOrder(null); // Clear selected order
+      loadOrdersAndUsers(); // Reload data
     } catch (err) {
+      console.error('Error deleting order:', err);
       setSnackbar({
         open: true,
         message: 'Không thể xóa đơn hàng.',
         severity: 'error'
       });
     }
+  };
+
+  const handleDialogClose = () => {
+    setOpenDialog(false);
+    setSelectedOrder(null);
+    setOrderDetails(null);
   };
 
   const handleChangePage = (event, newPage) => {
@@ -299,7 +546,7 @@ const OrderTable = () => {
           <Button
             variant="outlined"
             startIcon={<Refresh />}
-            onClick={loadOrders}
+            onClick={loadOrdersAndUsers}
             sx={{ textTransform: 'none' }}
           >
             Làm mới
@@ -371,9 +618,9 @@ const OrderTable = () => {
                 <TableCell sx={{ fontWeight: 600, backgroundColor: '#f8f9fa' }}>
                   Đơn hàng
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, backgroundColor: '#f8f9fa' }}>
+                {/* <TableCell sx={{ fontWeight: 600, backgroundColor: '#f8f9fa' }}>
                   Khách hàng
-                </TableCell>
+                </TableCell> */}
                 <TableCell sx={{ fontWeight: 600, backgroundColor: '#f8f9fa' }}>
                   Sản phẩm
                 </TableCell>
@@ -409,7 +656,7 @@ const OrderTable = () => {
                       </Typography>
                     </Box>
                   </TableCell>
-                  <TableCell>
+                  {/* <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                       <Avatar 
                         sx={{ 
@@ -430,15 +677,28 @@ const OrderTable = () => {
                         </Typography>
                       </Box>
                     </Box>
-                  </TableCell>
+                  </TableCell> */}
                   <TableCell>
                     <Box>
-                      <Typography variant="body2" fontWeight="500">
-                        {order.productName || order.items?.[0]?.productName || 'N/A'}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Số lượng: {order.quantity || order.totalItems || 1}
-                      </Typography>
+                      {order.items && order.items.length > 0 ? (
+                        <Box>
+                          <Typography variant="body2" fontWeight="500">
+                            {order.items[0].product_name || 'N/A'}
+                          </Typography>
+                          {order.items.length > 1 && (
+                            <Typography variant="caption" color="primary.main">
+                              +{order.items.length - 1} sản phẩm khác
+                            </Typography>
+                          )}
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            Tổng SL: {order.items.reduce((sum, item) => sum + (item.quantity || 0), 0)}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          Không có sản phẩm
+                        </Typography>
+                      )}
                     </Box>
                   </TableCell>
                   <TableCell>
@@ -465,7 +725,7 @@ const OrderTable = () => {
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" color="text.secondary">
-                      {formatDate(order.expectedDelivery || order.deliveryDate)}
+                      {order.expectedDelivery || 'Chưa xác định'}
                     </Typography>
                   </TableCell>
                   <TableCell align="center">
@@ -522,15 +782,12 @@ const OrderTable = () => {
           <Visibility sx={{ mr: 1, fontSize: 18 }} />
           Xem chi tiết
         </MenuItem>
-        <MenuItem onClick={() => handleStatusChange('Processing')}>
+        <MenuItem onClick={() => handleStatusChange('Done')}>
           <Edit sx={{ mr: 1, fontSize: 18 }} />
-          Đang xử lý
+          Đã Thanh Toán
         </MenuItem>
-        <MenuItem onClick={() => handleStatusChange('Shipped')}>
-          <LocalShipping sx={{ mr: 1, fontSize: 18 }} />
-          Đã gửi
-        </MenuItem>
-        <MenuItem onClick={() => handleStatusChange('Delivered')}>
+      
+        <MenuItem onClick={() => handleStatusChange('Done')}>
           <CheckCircle sx={{ mr: 1, fontSize: 18 }} />
           Đã giao
         </MenuItem>
@@ -547,7 +804,7 @@ const OrderTable = () => {
       {/* Dialog for View Details/Delete */}
       <Dialog 
         open={openDialog} 
-        onClose={() => setOpenDialog(false)} 
+        onClose={handleDialogClose} 
         maxWidth={dialogType === 'view' ? 'md' : 'sm'} 
         fullWidth
       >
@@ -589,25 +846,74 @@ const OrderTable = () => {
                       </Typography>
                       <Typography><strong>Tổng tiền:</strong> {formatCurrency(orderDetails.totalAmount)}</Typography>
                       <Typography><strong>Ngày đặt:</strong> {formatDate(orderDetails.createdAt)}</Typography>
+                      <Typography><strong>Ngày giao dự kiến:</strong> {orderDetails.expectedDelivery || formatExpectedDeliveryDate(orderDetails.createdAt)}</Typography>
                       <Typography><strong>Phương thức thanh toán:</strong> {orderDetails.paymentMethod}</Typography>
                     </Box>
                   </Box>
 
                   {/* Items */}
-                  {orderDetails.items && (
+                  {orderDetails.items && orderDetails.items.length > 0 && (
                     <Box>
-                      <Typography variant="h6" gutterBottom>Sản phẩm</Typography>
-                      {orderDetails.items.map((item, index) => (
-                        <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: '1px solid #eee' }}>
-                          <Box>
-                            <Typography variant="body2" fontWeight="500">{item.productName}</Typography>
-                            <Typography variant="caption" color="text.secondary">Số lượng: {item.quantity}</Typography>
+                      <Typography variant="h6" gutterBottom>Sản phẩm ({orderDetails.items.length})</Typography>
+                      <Box sx={{ border: '1px solid #eee', borderRadius: 1, overflow: 'hidden' }}>
+                        {orderDetails.items.map((item, index) => (
+                          <Box 
+                            key={index} 
+                            sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center',
+                              p: 2, 
+                              borderBottom: index < orderDetails.items.length - 1 ? '1px solid #eee' : 'none',
+                              backgroundColor: index % 2 === 0 ? '#fafafa' : 'white',
+                              gap: 2
+                            }}
+                          >
+                            {/* Product Image */}
+                            {item.product_image && (
+                              <Box 
+                                component="img"
+                                src={item.product_image}
+                                alt={item.product_name}
+                                sx={{
+                                  width: 60,
+                                  height: 60,
+                                  objectFit: 'cover',
+                                  borderRadius: 1,
+                                  border: '1px solid #ddd'
+                                }}
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            )}
+                            
+                            {/* Product Info */}
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="body2" fontWeight="500">
+                                {item.product_name || item.productName || 'Sản phẩm không xác định'}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                Số lượng: {item.quantity || 1}
+                              </Typography>
+                              {item.product_description && (
+                                <Typography variant="caption" color="text.secondary" display="block">
+                                  {item.product_description}
+                                </Typography>
+                              )}
+                            </Box>
+                            
+                            {/* Price Info */}
+                            <Box sx={{ textAlign: 'right' }}>
+                              <Typography variant="body2" fontWeight="600">
+                                {formatCurrency((item.product_price || item.price || 0) * (item.quantity || 1))}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {formatCurrency(item.product_price || item.price || 0)} x {item.quantity || 1}
+                              </Typography>
+                            </Box>
                           </Box>
-                          <Typography variant="body2" fontWeight="600">
-                            {formatCurrency(item.price * item.quantity)}
-                          </Typography>
-                        </Box>
-                      ))}
+                        ))}
+                      </Box>
                     </Box>
                   )}
                 </Box>
@@ -620,7 +926,7 @@ const OrderTable = () => {
           )}
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
-          <Button onClick={() => setOpenDialog(false)} sx={{ textTransform: 'none' }}>
+          <Button onClick={handleDialogClose} sx={{ textTransform: 'none' }}>
             {dialogType === 'view' ? 'Đóng' : 'Hủy'}
           </Button>
           {dialogType === 'view' && (
