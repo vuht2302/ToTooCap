@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { IoIosEye, IoIosEyeOff } from "react-icons/io";
 import { UserContext } from "../context/UserContext";
 import { apiUrl } from "@/config/api";
+import GoogleAuthService from "../services/googleAuth.service";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -108,6 +109,15 @@ const LoginPage = () => {
     } catch (error) {
       console.error("Error during login:", error);
       alert("Đăng nhập thất bại!");
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      await GoogleAuthService.redirectToGoogle();
+    } catch (error) {
+      console.error("Error during Google login:", error);
+      alert(error.message || "Đăng nhập Google thất bại!");
     }
   };
 

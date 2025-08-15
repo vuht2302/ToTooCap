@@ -10,6 +10,7 @@ import UserPage from "../pages/user/UserPage";
 import HomePage from "../pages/user/HomePage";
 import DashboardPage from "../pages/user/DashboardPage";
 import LoginPage from "../pages/loginPage";
+import GoogleCallback from "../pages/GoogleCallback";
 import MyProducts from "../pages/user/MyProducts";
 import BrandingGift from "../pages/user/BrandingGift";
 import Orders from "../pages/user/Orders";
@@ -38,6 +39,7 @@ const MainRoute = () => {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/user" element={<UserPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/auth/google/callback" element={<GoogleCallback />} />
         <Route path="/my-account" element={<UserPage />} />
         <Route path="/my-products" element={<MyProducts />} />
         <Route path="/branding-gift" element={<BrandingGift />} />

@@ -1,8 +1,8 @@
-import React, { useEffect, useContext } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { UserContext } from "../context/UserContext";
-import { Box, CircularProgress, Typography } from "@mui/material";
-import { apiUrl } from "../config/api";
+import React, { useEffect, useContext } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { UserContext } from '../context/UserContext';
+import { apiUrl } from '@/config/api';
+import GoogleAuthService from '../services/googleAuth.service';
 
 const GoogleCallback = () => {
   const navigate = useNavigate();
@@ -12,66 +12,38 @@ const GoogleCallback = () => {
   useEffect(() => {
     const handleGoogleCallback = async () => {
       try {
-        // Lấy code từ URL params
-        const code = searchParams.get("code");
-        const error = searchParams.get("error");
+        // Lấy authorization code từ URL parameters
+        const code = searchParams.get('code');
+        const error = searchParams.get('error');
 
         if (error) {
-          console.error("Google OAuth error:", error);
-          alert("Đăng nhập Google bị hủy hoặc có lỗi");
-          navigate("/login");
+          console.error('Google OAuth error:', error);
+          alert('Đăng nhập Google thất bại!');
+          navigate('/login');
           return;
         }
 
         if (!code) {
-          console.error("No authorization code received");
-          alert("Không nhận được mã xác thực từ Google");
-          navigate("/login");
+          alert('Không nhận được mã xác thực từ Google!');
+          navigate('/login');
           return;
         }
 
-        console.log("Received code from Google:", code);
+        // Gửi code đến backend để xử lý
+        const result = await GoogleAuthService.handleGoogleCallback(code);
 
-        // Tương tự VNPayCallback - gửi toàn bộ URL hiện tại với query parameters
-        const currentUrl = window.location.href;
-        console.log("Sending current URL to backend:", currentUrl);
+        if (result.success) {
+          const data = result.data;
+          // Lưu token vào localStorage
+          localStorage.setItem('accessToken', data.accessToken);
+          localStorage.setItem('refreshToken', data.refreshToken);
 
-        const response = await fetch(
-          apiUrl(
-            `/auth/google/callback?${window.location.search.substring(1)}`
-          ),
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
-
-        // Kiểm tra content-type trước khi parse JSON
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-          throw new Error("Server returned HTML instead of JSON");
-        }
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log("Backend response:", data);
-
-        if (data.success && data.accessToken) {
-          // Lưu token từ Google callback
-          localStorage.setItem("accessToken", data.accessToken);
-          localStorage.setItem("refreshToken", data.refreshToken);
-
-          // Gọi API để lấy thông tin user giống như loginPage
-          const infoRes = await fetch(apiUrl("/auth/user/get/loginUser"), {
-            method: "GET",
+          // Gọi API để lấy thông tin user
+          const infoRes = await fetch(apiUrl('/auth/user/get/loginUser'), {
+            method: 'GET',
             headers: {
               Authorization: `Bearer ${data.accessToken}`,
-              "Content-Type": "application/json",
+              'Content-Type': 'application/json',
             },
           });
 
@@ -79,112 +51,65 @@ const GoogleCallback = () => {
 
           if (infoRes.ok && infoData.success && infoData.data) {
             const role = infoData.data.role;
-            localStorage.setItem("user", JSON.stringify(infoData.data));
+            localStorage.setItem('user', JSON.stringify(infoData.data));
             setUser(infoData.data);
 
-            // Chuyển hướng theo role
-            if (role === "customer") {
-              navigate("/");
-            } else if (role === "manager") {
-              navigate("/manager");
-            } else if (role === "admin") {
-              navigate("/admin");
-            } else {
-              navigate("/");
+            // Chuyển hướng dựa trên role
+            if (role === 'customer') {
+              navigate('/');
+            } else if (role === 'manager') {
+              navigate('/manager');
+            } else if (role === 'admin') {
+              navigate('/admin');
             }
           } else {
-            alert(infoData.message || "Không lấy được thông tin người dùng!");
-            navigate("/login");
+            alert(infoData.message || 'Không lấy được thông tin người dùng!');
+            navigate('/login');
           }
         } else {
-          alert(data.message || "Đăng nhập Google thất bại");
-          navigate("/login");
+          alert(result.error || 'Đăng nhập Google thất bại!');
+          navigate('/login');
         }
       } catch (error) {
-        console.error("Google callback error:", error);
-
-        // Nếu lỗi là do HTML response, thử approach khác
-        if (error.message.includes("HTML instead of JSON")) {
-          try {
-            // Fallback: Thử gửi POST với code trong body
-            const code = searchParams.get("code");
-            const fallbackResponse = await fetch(apiUrl("/auth/login"), {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                googleCode: code,
-                loginType: "google",
-              }),
-            });
-
-            const fallbackData = await fallbackResponse.json();
-
-            if (fallbackResponse.ok && fallbackData.success) {
-              localStorage.setItem("accessToken", fallbackData.accessToken);
-              localStorage.setItem("refreshToken", fallbackData.refreshToken);
-
-              // Lấy thông tin user
-              const infoRes = await fetch(apiUrl("/auth/user/get/loginUser"), {
-                method: "GET",
-                headers: {
-                  Authorization: `Bearer ${fallbackData.accessToken}`,
-                  "Content-Type": "application/json",
-                },
-              });
-
-              const infoData = await infoRes.json();
-
-              if (infoRes.ok && infoData.success && infoData.data) {
-                const role = infoData.data.role;
-                localStorage.setItem("user", JSON.stringify(infoData.data));
-                setUser(infoData.data);
-
-                if (role === "customer") {
-                  navigate("/");
-                } else if (role === "manager") {
-                  navigate("/manager");
-                } else if (role === "admin") {
-                  navigate("/admin");
-                } else {
-                  navigate("/");
-                }
-                return; // Success, exit function
-              }
-            }
-          } catch (fallbackError) {
-            console.error("Fallback approach failed:", fallbackError);
-          }
-        }
-
-        alert("Có lỗi xảy ra trong quá trình đăng nhập: " + error.message);
-        navigate("/login");
+        console.error('Error during Google callback:', error);
+        alert('Có lỗi xảy ra trong quá trình đăng nhập!');
+        navigate('/login');
       }
     };
 
     handleGoogleCallback();
-  }, [navigate, setUser, searchParams]);
+  }, [searchParams, navigate, setUser]);
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "100vh",
-        backgroundColor: "#f5f5f5",
-      }}
-    >
-      <CircularProgress size={60} />
-      <Typography variant="h6" sx={{ mt: 2 }}>
-        Đang xử lý đăng nhập Google...
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-        Vui lòng đợi trong giây lát
-      </Typography>
-    </Box>
+    <div style={{ 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      height: '100vh',
+      flexDirection: 'column'
+    }}>
+      <div style={{ textAlign: 'center' }}>
+        <h2>Đang xử lý đăng nhập Google...</h2>
+        <div style={{
+          border: '4px solid #f3f3f3',
+          borderTop: '4px solid #3498db',
+          borderRadius: '50%',
+          width: '40px',
+          height: '40px',
+          animation: 'spin 2s linear infinite',
+          margin: '20px auto'
+        }}></div>
+        <p>Vui lòng đợi trong giây lát...</p>
+      </div>
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
+    </div>
   );
 };
 
