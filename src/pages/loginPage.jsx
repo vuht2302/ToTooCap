@@ -112,14 +112,7 @@ const LoginPage = () => {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    try {
-      await GoogleAuthService.redirectToGoogle();
-    } catch (error) {
-      console.error("Error during Google login:", error);
-      alert(error.message || "Đăng nhập Google thất bại!");
-    }
-  };
+ 
 
   const handleRegister = () => {
     navigate("/register");
