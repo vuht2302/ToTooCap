@@ -31,9 +31,34 @@ const LoginPage = () => {
     }));
   };
 
+  // Thêm hàm xử lý login Google
+  const handleGoogleLogin = async () => {
+    try {
+      // Gọi API để lấy URL redirect Google OAuth
+      const response = await fetch(apiUrl("/auth/google"), {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success && data.url) {
+        // Redirect user đến Google OAuth URL
+        window.location.href = data.url;
+      } else {
+        alert("Không thể kết nối với Google. Vui lòng thử lại!");
+      }
+    } catch (error) {
+      console.error("Error during Google login:", error);
+      alert("Lỗi kết nối Google. Vui lòng thử lại!");
+    }
+  };
+
   const handleLogin = async () => {
     try {
-  const userRes = await fetch(apiUrl("/auth/login"), {
+      const userRes = await fetch(apiUrl("/auth/login"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -53,16 +78,13 @@ const LoginPage = () => {
         localStorage.setItem("refreshToken", userData.refreshToken);
 
         // Gọi API để lấy thông tin user
-        const infoRes = await fetch(
-          apiUrl("/auth/user/get/loginUser"),
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${userData.accessToken}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
+        const infoRes = await fetch(apiUrl("/auth/user/get/loginUser"), {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${userData.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        });
 
         const infoData = await infoRes.json();
 
@@ -106,7 +128,12 @@ const LoginPage = () => {
   return (
     <div className="login-page">
       <div className="image-container">
-        <img className="login-logo" src={logo} alt="logo" onClick={() => navigate("/")} />
+        <img
+          className="login-logo"
+          src={logo}
+          alt="logo"
+          onClick={() => navigate("/")}
+        />
         <img className="login-image" src={image_login} alt="login visual" />
       </div>
 

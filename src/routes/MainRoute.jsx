@@ -27,6 +27,7 @@ import RevenueReport from "../pages/admin/RevenueReport";
 import AdminLayout from "../components/admin/AdminLayout";
 import ImagesManagement from "../pages/admin/ImagesManagement";
 import CheckoutPage from "../pages/user/CheckoutPage";
+import GoogleCallback from "../pages/GoogleCallback";
 
 const MainRoute = () => {
   return (
@@ -52,7 +53,7 @@ const MainRoute = () => {
         <Route path="/product-design/:id" element={<ProductDesignDetail />} />
         <Route path="/hat-design/:productId" element={<HatDesignPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
-
+        <Route path="/google" element={<GoogleCallback />} />
         {/* Admin Routes with AdminLayout */}
 
         <Route
