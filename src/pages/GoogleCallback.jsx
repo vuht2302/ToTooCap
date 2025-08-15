@@ -32,19 +32,11 @@ const GoogleCallback = () => {
 
         console.log("Received code from Google:", code);
 
-        // Tương tự như VNPayCallback - gửi toàn bộ URL hiện tại
-        const token = localStorage.getItem("accessToken");
-        const currentUrl = window.location.href;
-
-        console.log("Sending current URL to backend:", currentUrl);
-
         const response = await fetch(apiUrl("/auth/google/callback"), {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          // Không có body cho GET request
         });
 
         if (!response.ok) {
@@ -54,23 +46,40 @@ const GoogleCallback = () => {
         const data = await response.json();
         console.log("Backend response:", data);
 
-        if (data.success) {
-          // Lưu token
+        if (data.success && data.accessToken) {
+          // Lưu token từ Google callback
           localStorage.setItem("accessToken", data.accessToken);
           localStorage.setItem("refreshToken", data.refreshToken);
-          localStorage.setItem("user", JSON.stringify(data.user));
-          setUser(data.user);
 
-          // Chuyển hướng theo role
-          const role = data.user.role;
-          if (role === "customer") {
-            navigate("/");
-          } else if (role === "manager") {
-            navigate("/manager");
-          } else if (role === "admin") {
-            navigate("/admin");
+          // Gọi API để lấy thông tin user giống như loginPage
+          const infoRes = await fetch(apiUrl("/auth/user/get/loginUser"), {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${data.accessToken}`,
+              "Content-Type": "application/json",
+            },
+          });
+
+          const infoData = await infoRes.json();
+
+          if (infoRes.ok && infoData.success && infoData.data) {
+            const role = infoData.data.role;
+            localStorage.setItem("user", JSON.stringify(infoData.data));
+            setUser(infoData.data);
+
+            // Chuyển hướng theo role
+            if (role === "customer") {
+              navigate("/");
+            } else if (role === "manager") {
+              navigate("/manager");
+            } else if (role === "admin") {
+              navigate("/admin");
+            } else {
+              navigate("/");
+            }
           } else {
-            navigate("/"); // Default về trang chủ
+            alert(infoData.message || "Không lấy được thông tin người dùng!");
+            navigate("/login");
           }
         } else {
           alert(data.message || "Đăng nhập Google thất bại");
