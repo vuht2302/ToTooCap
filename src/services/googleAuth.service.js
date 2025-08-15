@@ -24,19 +24,23 @@ export const GoogleAuthService = {
     }
   },
 
-  // Xử lý callback từ Google OAuth
+  // Xử lý callback từ Google OAuth - Gọi trực tiếp với GET method
   async handleGoogleCallback(code) {
     try {
       if (GOOGLE_OAUTH_CONFIG.DEBUG) {
         console.log("Calling callback API with code:", code);
       }
 
-      const response = await fetch(GOOGLE_OAUTH_CONFIG.CALLBACK_ENDPOINT, {
-        method: "POST",
+      // Gọi GET API với code làm query parameter
+      const callbackUrl = `${
+        GOOGLE_OAUTH_CONFIG.CALLBACK_ENDPOINT
+      }?code=${encodeURIComponent(code)}`;
+
+      const response = await fetch(callbackUrl, {
+        method: "GET",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ code }),
       });
 
       if (GOOGLE_OAUTH_CONFIG.DEBUG) {
