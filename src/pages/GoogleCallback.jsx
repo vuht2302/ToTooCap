@@ -32,12 +32,27 @@ const GoogleCallback = () => {
 
         console.log("Received code from Google:", code);
 
-        const response = await fetch(apiUrl("/auth/google/callback"), {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
+        // Tương tự VNPayCallback - gửi toàn bộ URL hiện tại với query parameters
+        const currentUrl = window.location.href;
+        console.log("Sending current URL to backend:", currentUrl);
+
+        const response = await fetch(
+          apiUrl(
+            `/auth/google/callback?${window.location.search.substring(1)}`
+          ),
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        // Kiểm tra content-type trước khi parse JSON
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("Server returned HTML instead of JSON");
+        }
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -87,6 +102,62 @@ const GoogleCallback = () => {
         }
       } catch (error) {
         console.error("Google callback error:", error);
+
+        // Nếu lỗi là do HTML response, thử approach khác
+        if (error.message.includes("HTML instead of JSON")) {
+          try {
+            // Fallback: Thử gửi POST với code trong body
+            const code = searchParams.get("code");
+            const fallbackResponse = await fetch(apiUrl("/auth/login"), {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                googleCode: code,
+                loginType: "google",
+              }),
+            });
+
+            const fallbackData = await fallbackResponse.json();
+
+            if (fallbackResponse.ok && fallbackData.success) {
+              localStorage.setItem("accessToken", fallbackData.accessToken);
+              localStorage.setItem("refreshToken", fallbackData.refreshToken);
+
+              // Lấy thông tin user
+              const infoRes = await fetch(apiUrl("/auth/user/get/loginUser"), {
+                method: "GET",
+                headers: {
+                  Authorization: `Bearer ${fallbackData.accessToken}`,
+                  "Content-Type": "application/json",
+                },
+              });
+
+              const infoData = await infoRes.json();
+
+              if (infoRes.ok && infoData.success && infoData.data) {
+                const role = infoData.data.role;
+                localStorage.setItem("user", JSON.stringify(infoData.data));
+                setUser(infoData.data);
+
+                if (role === "customer") {
+                  navigate("/");
+                } else if (role === "manager") {
+                  navigate("/manager");
+                } else if (role === "admin") {
+                  navigate("/admin");
+                } else {
+                  navigate("/");
+                }
+                return; // Success, exit function
+              }
+            }
+          } catch (fallbackError) {
+            console.error("Fallback approach failed:", fallbackError);
+          }
+        }
+
         alert("Có lỗi xảy ra trong quá trình đăng nhập: " + error.message);
         navigate("/login");
       }
