@@ -5,6 +5,7 @@ import logo from "../assets/logo.png";
 import "../assets/registerPage.css";
 import { useNavigate } from "react-router-dom";
 import { apiUrl } from "@/config/api";
+import GoogleAuthService from "../services/googleAuth.service";
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -47,6 +48,15 @@ const RegisterPage = () => {
     } catch (error) {
       console.error("Registration error:", error);
       alert("Something went wrong.");
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      await GoogleAuthService.redirectToGoogle();
+    } catch (error) {
+      console.error("Error during Google login:", error);
+      alert(error.message || "Đăng nhập Google thất bại!");
     }
   };
 
@@ -114,7 +124,7 @@ const RegisterPage = () => {
             Create Account
           </button>
 
-          <button className="register-google-button">
+          <button className="register-google-button" onClick={handleGoogleLogin}>
             <img className="register-google-image" src={image_google} alt="Google" />
             Sign up with Google
           </button>
