@@ -9,7 +9,7 @@ import {
   Box,
 } from "@mui/material";
 import { formatCurrency } from "../../utils/format";
-import vnpayQR from "../../../dist/assets/vnpayQR.jpg";
+import vnpayQR from "../../../dist/assets/vnpay.jpg";
 
 const QRPaymentDialog = ({
   open,
