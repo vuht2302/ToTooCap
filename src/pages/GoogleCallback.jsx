@@ -32,27 +32,20 @@ const GoogleCallback = () => {
 
         console.log("Received code from Google:", code);
 
-        // Tương tự VNPayCallback - gửi toàn bộ URL hiện tại với query parameters
+        // Tương tự như VNPayCallback - gửi toàn bộ URL hiện tại
+        const token = localStorage.getItem("accessToken");
         const currentUrl = window.location.href;
+
         console.log("Sending current URL to backend:", currentUrl);
 
-        const response = await fetch(
-          apiUrl(
-            `/auth/google/callback?${window.location.search.substring(1)}`
-          ),
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
-
-        // Kiểm tra content-type trước khi parse JSON
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-          throw new Error("Server returned HTML instead of JSON");
-        }
+        const response = await fetch(apiUrl("/auth/google/callback"), {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          // Không có body cho GET request
+        });
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -61,40 +54,23 @@ const GoogleCallback = () => {
         const data = await response.json();
         console.log("Backend response:", data);
 
-        if (data.success && data.accessToken) {
-          // Lưu token từ Google callback
+        if (data.success) {
+          // Lưu token
           localStorage.setItem("accessToken", data.accessToken);
           localStorage.setItem("refreshToken", data.refreshToken);
+          localStorage.setItem("user", JSON.stringify(data.user));
+          setUser(data.user);
 
-          // Gọi API để lấy thông tin user giống như loginPage
-          const infoRes = await fetch(apiUrl("/auth/user/get/loginUser"), {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${data.accessToken}`,
-              "Content-Type": "application/json",
-            },
-          });
-
-          const infoData = await infoRes.json();
-
-          if (infoRes.ok && infoData.success && infoData.data) {
-            const role = infoData.data.role;
-            localStorage.setItem("user", JSON.stringify(infoData.data));
-            setUser(infoData.data);
-
-            // Chuyển hướng theo role
-            if (role === "customer") {
-              navigate("/");
-            } else if (role === "manager") {
-              navigate("/manager");
-            } else if (role === "admin") {
-              navigate("/admin");
-            } else {
-              navigate("/");
-            }
+          // Chuyển hướng theo role
+          const role = data.user.role;
+          if (role === "customer") {
+            navigate("/");
+          } else if (role === "manager") {
+            navigate("/manager");
+          } else if (role === "admin") {
+            navigate("/admin");
           } else {
-            alert(infoData.message || "Không lấy được thông tin người dùng!");
-            navigate("/login");
+            navigate("/"); // Default về trang chủ
           }
         } else {
           alert(data.message || "Đăng nhập Google thất bại");
@@ -102,62 +78,6 @@ const GoogleCallback = () => {
         }
       } catch (error) {
         console.error("Google callback error:", error);
-
-        // Nếu lỗi là do HTML response, thử approach khác
-        if (error.message.includes("HTML instead of JSON")) {
-          try {
-            // Fallback: Thử gửi POST với code trong body
-            const code = searchParams.get("code");
-            const fallbackResponse = await fetch(apiUrl("/auth/login"), {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                googleCode: code,
-                loginType: "google",
-              }),
-            });
-
-            const fallbackData = await fallbackResponse.json();
-
-            if (fallbackResponse.ok && fallbackData.success) {
-              localStorage.setItem("accessToken", fallbackData.accessToken);
-              localStorage.setItem("refreshToken", fallbackData.refreshToken);
-
-              // Lấy thông tin user
-              const infoRes = await fetch(apiUrl("/auth/user/get/loginUser"), {
-                method: "GET",
-                headers: {
-                  Authorization: `Bearer ${fallbackData.accessToken}`,
-                  "Content-Type": "application/json",
-                },
-              });
-
-              const infoData = await infoRes.json();
-
-              if (infoRes.ok && infoData.success && infoData.data) {
-                const role = infoData.data.role;
-                localStorage.setItem("user", JSON.stringify(infoData.data));
-                setUser(infoData.data);
-
-                if (role === "customer") {
-                  navigate("/");
-                } else if (role === "manager") {
-                  navigate("/manager");
-                } else if (role === "admin") {
-                  navigate("/admin");
-                } else {
-                  navigate("/");
-                }
-                return; // Success, exit function
-              }
-            }
-          } catch (fallbackError) {
-            console.error("Fallback approach failed:", fallbackError);
-          }
-        }
-
         alert("Có lỗi xảy ra trong quá trình đăng nhập: " + error.message);
         navigate("/login");
       }
