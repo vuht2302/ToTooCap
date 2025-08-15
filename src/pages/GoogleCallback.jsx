@@ -32,14 +32,17 @@ const GoogleCallback = () => {
 
         console.log("Received code from Google:", code);
 
-        // Gửi code tới backend để xác thực
-        const response = await fetch(apiUrl("/auth/google/callback"), {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ code }),
-        });
+        // Gửi code tới backend qua query parameter (không có body)
+        const response = await fetch(
+          apiUrl(`/auth/google/callback?code=${encodeURIComponent(code)}`),
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            // Không có body cho GET request
+          }
+        );
 
         const data = await response.json();
         console.log("Backend response:", data);
