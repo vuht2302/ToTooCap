@@ -2,7 +2,7 @@ import React, { useEffect, useContext } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { UserContext } from "../context/UserContext";
 import { Box, CircularProgress, Typography } from "@mui/material";
-import { apiUrl } from "@/config/api";
+import { apiUrl } from "../config/api";
 
 const GoogleCallback = () => {
   const navigate = useNavigate();
@@ -17,12 +17,14 @@ const GoogleCallback = () => {
         const error = searchParams.get("error");
 
         if (error) {
+          console.error("Google OAuth error:", error);
           alert("Đăng nhập Google bị hủy hoặc có lỗi");
           navigate("/login");
           return;
         }
 
         if (!code) {
+          console.error("No authorization code received");
           alert("Không nhận được mã xác thực từ Google");
           navigate("/login");
           return;
