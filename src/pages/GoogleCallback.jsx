@@ -34,7 +34,7 @@ const GoogleCallback = () => {
 
         // Gửi code tới backend để xác thực
         const response = await fetch(apiUrl("/auth/google/callback"), {
-          method: "POST",
+          method: "GET",
           headers: {
             "Content-Type": "application/json",
           },
