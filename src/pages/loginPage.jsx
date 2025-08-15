@@ -34,22 +34,7 @@ const LoginPage = () => {
   // Thêm hàm xử lý login Google
   const handleGoogleLogin = async () => {
     try {
-      // Gọi API để lấy URL redirect Google OAuth
-      const response = await fetch(apiUrl("/auth/google"), {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success && data.url) {
-        // Redirect user đến Google OAuth URL
-        window.location.href = data.url;
-      } else {
-        alert("Không thể kết nối với Google. Vui lòng thử lại!");
-      }
+      await GoogleAuthService.redirectToGoogle();
     } catch (error) {
       console.error("Error during Google login:", error);
       alert("Lỗi kết nối Google. Vui lòng thử lại!");

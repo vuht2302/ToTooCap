@@ -1,10 +1,10 @@
-import GOOGLE_OAUTH_CONFIG from "../config/googleOAuth";
+// Google Auth Service cho việc xử lý đăng nhập Google OAuth
 
-export const GoogleAuthService = {
+const GoogleAuthService = {
   // Lấy URL để redirect đến Google OAuth
   async getGoogleAuthUrl() {
     try {
-      const response = await fetch(GOOGLE_OAUTH_CONFIG.BASE_URL, {
+      const response = await fetch("http://54.169.159.141:3000/auth/google", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -13,10 +13,14 @@ export const GoogleAuthService = {
 
       const data = await response.json();
 
+      // Response format: { "success": true, "url": "https://accounts.google.com/..." }
       if (response.ok && data.success && data.url) {
         return { success: true, url: data.url };
       } else {
-        return { success: false, error: "Không thể lấy URL xác thực Google" };
+        return {
+          success: false,
+          error: data.message || "Không thể lấy URL xác thực Google",
+        };
       }
     } catch (error) {
       console.error("Error getting Google auth URL:", error);
@@ -27,14 +31,15 @@ export const GoogleAuthService = {
   // Xử lý callback từ Google OAuth - Gọi trực tiếp với GET method
   async handleGoogleCallback(code) {
     try {
-      if (GOOGLE_OAUTH_CONFIG.DEBUG) {
-        console.log("Calling callback API with code:", code);
-      }
+      console.log(
+        "Calling callback API with code:",
+        code.substring(0, 20) + "..."
+      );
 
       // Gọi GET API với code làm query parameter
-      const callbackUrl = `${
-        GOOGLE_OAUTH_CONFIG.CALLBACK_ENDPOINT
-      }?code=${encodeURIComponent(code)}`;
+      const callbackUrl = `http://54.169.159.141:3000/auth/google/callback?code=${encodeURIComponent(
+        code
+      )}`;
 
       const response = await fetch(callbackUrl, {
         method: "GET",
@@ -43,30 +48,18 @@ export const GoogleAuthService = {
         },
       });
 
-      if (GOOGLE_OAUTH_CONFIG.DEBUG) {
-        console.log("Response status:", response.status);
-      }
-
       const data = await response.json();
 
-      if (GOOGLE_OAUTH_CONFIG.DEBUG) {
-        console.log("Response data:", data);
-      }
+      console.log("Response status:", response.status);
+      console.log("Response data:", data);
 
-      if (response.ok) {
-        // Kiểm tra nhiều format response khác nhau
-        if (data.success !== false) {
-          return { success: true, data };
-        } else {
-          return {
-            success: false,
-            error: data.message || "Đăng nhập Google thất bại",
-          };
-        }
+      // Response format: { "success": true, "message": "Logged in successful", "accessToken": "string" }
+      if (response.ok && data.success) {
+        return { success: true, data: data };
       } else {
         return {
           success: false,
-          error: data.message || `HTTP Error: ${response.status}`,
+          error: data.message || "Đăng nhập Google thất bại",
         };
       }
     } catch (error) {

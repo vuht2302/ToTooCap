@@ -6,7 +6,6 @@ import "../assets/registerPage.css";
 import { useNavigate } from "react-router-dom";
 import { apiUrl } from "@/config/api";
 import GoogleAuthService from "../services/googleAuth.service";
-
 const RegisterPage = () => {
   const navigate = useNavigate();
 
